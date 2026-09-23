@@ -117,11 +117,7 @@ void setup() {
 // Round HUD Overlays
 // -------------------------------------------------------------
 static void draw_circular_overlays() {
-    // 1. 外部刻度与安全视界圆环
-    canvas.drawCircle(SCREEN_CENTER_X, SCREEN_CENTER_Y, SAFE_UI_RADIUS, 0x18E3);
-    canvas.drawCircle(SCREEN_CENTER_X, SCREEN_CENTER_Y, SAFE_UI_RADIUS - 6, 0x10C2);
-
-    // 2. 四方微标 (N / S / W / E)
+    // 1. 四方微标 (N / S / W / E)
     canvas.setTextColor(COLOR_TEXT_MUTED);
     canvas.setTextDatum(middle_center);
     canvas.setTextSize(1);

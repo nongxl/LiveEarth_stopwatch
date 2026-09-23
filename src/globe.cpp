@@ -42,8 +42,9 @@ void GlobeEngine::handleDrag(float delta_x, float delta_y) {
     float r = base_radius * current_zoom;
     if (r < 10.0f) return;
 
-    float dyaw = (delta_x / r) * 1.35f;
-    float dpitch = -(delta_y / r) * 1.35f;
+    // 拖拽方向：手指往右，球体表面随手指往右移动（视野经度减少）；手指往下，球体表面随手指往下移动（视野纬度增加）
+    float dyaw = -(delta_x / r) * 1.35f;
+    float dpitch = (delta_y / r) * 1.35f;
 
     current_yaw += dyaw;
     current_pitch += dpitch;
@@ -128,37 +129,9 @@ bool GlobeEngine::projectLatLng(float lat_deg, float lon_deg, int16_t& out_scree
 // -------------------------------------------------------------
 
 void GlobeEngine::renderOceanGlobe(M5Canvas& canvas, float r) {
-    // 1. 先整体填充夜间深渊绀青黑底色 (Midnight Abyss #080516)
-    canvas.fillCircle(cx, cy, (int32_t)r, 0x0823);
-
-    // 2. 如果存在太阳直射数据，计算太阳在当前视角的投影与受光面漫反射
-    if (has_sun_data) {
-        float subLatR = sun_pos.subsolar_lat * DEG_TO_RAD;
-        float subLonR = sun_pos.subsolar_lon * DEG_TO_RAD;
-
-        float sin_cLat = sinf(current_pitch);
-        float cos_cLat = cosf(current_pitch);
-        float sin_subLat = sinf(subLatR);
-        float cos_subLat = cosf(subLatR);
-        float dLon = subLonR - current_yaw;
-
-        float cos_c = sin_cLat * sin_subLat + cos_cLat * cos_subLat * cosf(dLon);
-
-        // 如果太阳在正面半球 (cos_c > -0.15)，在受光侧绘制深海日照蔚蓝漫射圆弧
-        float sun_x = r * cos_subLat * sinf(dLon);
-        float sun_y = r * (cos_cLat * sin_subLat - sin_cLat * cos_subLat * cosf(dLon));
-        int16_t sx = cx + (int16_t)(sun_x * 0.45f);
-        int16_t sy = cy - (int16_t)(sun_y * 0.45f);
-
-        // 向阳侧深钴大洋蓝 (#0a254d -> 0x092B)
-        int32_t day_radius = (int32_t)(r * 0.88f);
-        if (cos_c > 0.1f) {
-            canvas.fillCircle(sx, sy, day_radius, 0x094C);
-            canvas.fillCircle(sx, sy, (int32_t)(day_radius * 0.7f), 0x0A0F);
-        } else if (cos_c > -0.2f) {
-            canvas.fillCircle(sx, sy, (int32_t)(day_radius * 0.5f), 0x08CA);
-        }
-    }
+    // 纯正球体深邃大洋底色（完美贴合球心 (cx, cy)，杜绝非同心圆圈产生的错位突兀痕迹）
+    // 采用沉稳深邃的深海蓝 (#081a33 -> 0x08C6)
+    canvas.fillCircle(cx, cy, (int32_t)r, 0x08C6);
 }
 
 void GlobeEngine::renderAtmosphereGlow(M5Canvas& canvas, float r) {
