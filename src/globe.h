@@ -55,7 +55,7 @@ private:
     // 渲染分步
     void renderOceanGlobe(M5Canvas& canvas, float r);
     void renderTerminatorLine(M5Canvas& canvas, float r);
-    void renderZeroReferenceLines(M5Canvas& canvas, float r);
+    void renderCoordinateGrid(M5Canvas& canvas, float r);
     void renderAtmosphereGlow(M5Canvas& canvas, float r);
     void renderHighPrecisionContinents(M5Canvas& canvas, float r);
     void renderCityNightLights(M5Canvas& canvas, float r);

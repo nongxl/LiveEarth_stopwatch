@@ -237,12 +237,10 @@ void GlobeEngine::renderTerminatorLine(M5Canvas& canvas, float r) {
     }
 }
 
-void GlobeEngine::renderZeroReferenceLines(M5Canvas& canvas, float r) {
-    // 调高对比度与科技质感：赤道通透青蓝(0x4EEB)，本初子午线雅致金黄(0xFE60)，锚点高亮橙金(0xFDC0)
-    const uint16_t COL_EQUATOR  = 0x4EEB; 
-    const uint16_t COL_MERIDIAN = 0xFE60; 
-    const uint16_t COL_ANCHOR   = 0xFDC0; 
-    const uint16_t COL_TICK     = 0x7BEF; 
+void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
+    // 雅致深空淡蓝色调（低饱和度半透明感微光淡蓝，不抢占海岸线与地标视觉焦点）
+    const uint16_t COL_GRID_STANDARD = 0x2354; // 普通经纬网：柔和微光淡蓝灰 (RGB ~ 35, 105, 165)
+    const uint16_t COL_GRID_PRIME    = 0x4C9B; // 赤道与本初子午线：清爽微亮淡天蓝 (RGB ~ 70, 145, 215)
 
     float cLatRad = current_pitch;
     float cLonRad = current_yaw;
@@ -251,11 +249,47 @@ void GlobeEngine::renderZeroReferenceLines(M5Canvas& canvas, float r) {
     float sin_cLon = sinf(cLonRad);
     float cos_cLon = cosf(cLonRad);
 
-    // 1. 绘制赤道圈 (0° 纬线, lat = 0)
-    int prevX = -1, prevY = -1;
-    bool prevVis = false;
-    for (int step = 0; step <= 72; step++) {
-        float lonDeg = -180.0f + step * 5.0f;
+    // 1. 绘制纬度圈（Parallels）：-60°, -30°, 0° (赤道), +30°, +60°
+    static const float PARALLELS[] = { -60.0f, -30.0f, 0.0f, 30.0f, 60.0f };
+    for (float latDeg : PARALLELS) {
+        float latRad = latDeg * DEG_TO_RAD;
+        float sin_lat = sinf(latRad);
+        float cos_lat = cosf(latRad);
+
+        uint16_t line_col = (latDeg == 0.0f) ? COL_GRID_PRIME : COL_GRID_STANDARD;
+
+        int prevX = -1, prevY = -1;
+        bool prevVis = false;
+
+        // 步长 8 度采样一圈（共 45 段），高速高效
+        for (int step = 0; step <= 45; step++) {
+            float lonRad = (-180.0f + step * 8.0f) * DEG_TO_RAD;
+            float cos_lon = cosf(lonRad);
+            float sin_lon = sinf(lonRad);
+
+            float cos_dLon = cos_lon * cos_cLon + sin_lon * sin_cLon;
+            float sin_dLon = sin_lon * cos_cLon - cos_lon * sin_cLon;
+
+            float cos_c = sin_cLat * sin_lat + cos_cLat * cos_lat * cos_dLon;
+            if (cos_c > 0.02f) {
+                int curX = cx + (int)(r * (cos_lat * sin_dLon));
+                int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
+
+                if (prevVis) {
+                    canvas.drawLine(prevX, prevY, curX, curY, line_col);
+                }
+                prevX = curX;
+                prevY = curY;
+                prevVis = true;
+            } else {
+                prevVis = false;
+            }
+        }
+    }
+
+    // 2. 绘制经度线（Meridians）：每 30° 一道，共 12 条大圆弧线
+    for (int m = 0; m < 12; m++) {
+        float lonDeg = m * 30.0f;
         float lonRad = lonDeg * DEG_TO_RAD;
         float cos_lon = cosf(lonRad);
         float sin_lon = sinf(lonRad);
@@ -263,95 +297,32 @@ void GlobeEngine::renderZeroReferenceLines(M5Canvas& canvas, float r) {
         float cos_dLon = cos_lon * cos_cLon + sin_lon * sin_cLon;
         float sin_dLon = sin_lon * cos_cLon - cos_lon * sin_cLon;
 
-        // lat=0 时: sin_lat = 0, cos_lat = 1
-        float cos_c = cos_cLat * cos_dLon;
-        if (cos_c > 0.02f) {
-            int curX = cx + (int)(r * sin_dLon);
-            int curY = cy - (int)(r * (-sin_cLat * cos_dLon));
+        uint16_t line_col = (m == 0) ? COL_GRID_PRIME : COL_GRID_STANDARD;
 
-            if (prevVis) {
-                canvas.drawLine(prevX, prevY, curX, curY, COL_EQUATOR);
+        int prevX = -1, prevY = -1;
+        bool prevVis = false;
+
+        // 纬度跨度 -75° 到 +75°，步长 6° 采样（共 25 段）
+        for (int step = 0; step <= 25; step++) {
+            float latRad = (-75.0f + step * 6.0f) * DEG_TO_RAD;
+            float sin_lat = sinf(latRad);
+            float cos_lat = cosf(latRad);
+
+            float cos_c = sin_cLat * sin_lat + cos_cLat * cos_lat * cos_dLon;
+            if (cos_c > 0.02f) {
+                int curX = cx + (int)(r * (cos_lat * sin_dLon));
+                int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
+
+                if (prevVis) {
+                    canvas.drawLine(prevX, prevY, curX, curY, line_col);
+                }
+                prevX = curX;
+                prevY = curY;
+                prevVis = true;
+            } else {
+                prevVis = false;
             }
-
-            // 每隔 30 度在赤道上绘制一个微小刻度节点
-            int degInt = (int)(lonDeg < 0 ? lonDeg + 360.0f : lonDeg);
-            if (degInt % 30 == 0 && cos_c > 0.2f) {
-                canvas.drawCircle(curX, curY, 1, COL_TICK);
-            }
-
-            prevX = curX;
-            prevY = curY;
-            prevVis = true;
-        } else {
-            prevVis = false;
         }
-    }
-
-    // 2. 绘制本初子午线 (0° 经线, lon = 0)
-    prevX = -1; prevY = -1;
-    prevVis = false;
-    for (int step = 0; step <= 36; step++) {
-        float latDeg = -85.0f + step * (170.0f / 36.0f);
-        float latRad = latDeg * DEG_TO_RAD;
-        float sin_lat = sinf(latRad);
-        float cos_lat = cosf(latRad);
-
-        float cos_c = sin_cLat * sin_lat + cos_cLat * cos_lat * cos_cLon;
-        if (cos_c > 0.02f) {
-            int curX = cx + (int)(r * cos_lat * (-sin_cLon));
-            int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_cLon));
-
-            if (prevVis) {
-                canvas.drawLine(prevX, prevY, curX, curY, COL_MERIDIAN);
-            }
-
-            // 每隔 30 度在子午线上绘制刻度点
-            if (abs((int)latDeg) % 30 == 0 && abs((int)latDeg) != 0 && cos_c > 0.2f) {
-                canvas.drawCircle(curX, curY, 1, COL_MERIDIAN);
-            }
-
-            prevX = curX;
-            prevY = curY;
-            prevVis = true;
-        } else {
-            prevVis = false;
-        }
-    }
-
-    // 3. (0°, 0°) 零度交汇锚点 HUD 定位准心（几内亚湾）
-    int16_t ax, ay;
-    float depth;
-    if (projectLatLng(0.0f, 0.0f, ax, ay, depth) && depth > 0.05f) {
-        // 双层同心准星
-        canvas.drawCircle(ax, ay, 4, COL_ANCHOR);
-        canvas.drawCircle(ax, ay, 2, 0xFFFF);
-        canvas.drawLine(ax - 7, ay, ax + 7, ay, COL_ANCHOR);
-        canvas.drawLine(ax, ay - 7, ax, ay + 7, COL_ANCHOR);
-
-        // 仅在正对时显示清晰文字 "0°,0°"
-        if (depth > 0.35f) {
-            canvas.setTextColor(COL_ANCHOR);
-            canvas.setTextDatum(top_left);
-            canvas.setTextSize(1);
-            canvas.drawString("0,0", ax + 6, ay + 3);
-        }
-    }
-
-    // 4. 在赤道与本初子午线各选一个特征点添加文字微标 "0° MERIDIAN" 和 "EQUATOR"
-    int16_t mx, my;
-    if (projectLatLng(25.0f, 0.0f, mx, my, depth) && depth > 0.45f) {
-        canvas.setTextColor(COL_MERIDIAN);
-        canvas.setTextDatum(middle_left);
-        canvas.setTextSize(1);
-        canvas.drawString("0 E/W", mx + 4, my);
-    }
-
-    int16_t eqx, eqy;
-    if (projectLatLng(0.0f, 45.0f, eqx, eqy, depth) && depth > 0.45f) {
-        canvas.setTextColor(COL_EQUATOR);
-        canvas.setTextDatum(bottom_center);
-        canvas.setTextSize(1);
-        canvas.drawString("0 LAT", eqx, eqy - 3);
     }
 }
 
@@ -553,11 +524,11 @@ void GlobeEngine::render(M5Canvas& canvas) {
     // 2. 晨昏分界过渡光弧（大圆日落霞光渐变）
     renderTerminatorLine(canvas, r);
 
-    // 3. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏平滑渐变 / 黑夜暗调青灰）
-    renderHighPrecisionContinents(canvas, r);
+    // 3. 淡蓝色优雅经纬网格（5条纬线圈 + 12条经线弧）
+    renderCoordinateGrid(canvas, r);
 
-    // 4. 0度经纬参考基准线与 (0,0) 十字锚点
-    renderZeroReferenceLines(canvas, r);
+    // 4. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏平滑渐变 / 黑夜暗调青灰）
+    renderHighPrecisionContinents(canvas, r);
 
     // 5. 夜间半球城市星光火（NASA VIIRS 夜光数据采样）
     renderCityNightLights(canvas, r);
