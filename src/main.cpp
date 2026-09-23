@@ -91,14 +91,14 @@ static void draw_static_hud_markers() {
     M5.Display.drawString("W", SCREEN_CENTER_X - SAFE_UI_RADIUS + 14, SCREEN_CENTER_Y);
     M5.Display.drawString("E", SCREEN_CENTER_X + SAFE_UI_RADIUS - 14, SCREEN_CENTER_Y);
 
-    // 顶部主标题
+    // 顶部主标题 (上移至 Y: 28，留出充足空间)
     M5.Display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
     M5.Display.setTextSize(2);
-    M5.Display.drawString("LIVE EARTH", SCREEN_CENTER_X, 36);
+    M5.Display.drawString("LIVE EARTH", SCREEN_CENTER_X, 28);
 }
 
 static void update_dynamic_hud() {
-    // 1. 顶部视界经纬度信息
+    // 1. 顶部视界经纬度信息 (上移至 Y: 46)
     float center_lat = globe.getPitch() * RAD_TO_DEG;
     float center_lon = globe.getYaw() * RAD_TO_DEG;
     char view_buf[48];
@@ -109,9 +109,9 @@ static void update_dynamic_hud() {
     M5.Display.setTextColor(0xD69A, COLOR_BG);
     M5.Display.setTextDatum(middle_center);
     M5.Display.setTextSize(1);
-    M5.Display.drawString(view_buf, SCREEN_CENTER_X, 58);
+    M5.Display.drawString(view_buf, SCREEN_CENTER_X, 46);
 
-    // 2. 太阳直射位置
+    // 2. 太阳直射位置 (上移至 Y: 58，与 Y:73 视口边缘完全隔离，彻底杜绝闪烁与遮挡)
     char sun_buf[48];
     float slat = globe.getSubsolarLat();
     float slon = globe.getSubsolarLon();
@@ -119,7 +119,7 @@ static void update_dynamic_hud() {
              fabsf(slat), (slat >= 0 ? 'N' : 'S'),
              fabsf(slon), (slon >= 0 ? 'E' : 'W'));
     M5.Display.setTextColor(0xFD64, COLOR_BG); // 暖金
-    M5.Display.drawString(sun_buf, SCREEN_CENTER_X, 72);
+    M5.Display.drawString(sun_buf, SCREEN_CENTER_X, 58);
 
     // 3. 底部状态栏 HUD (FPS / 内存指标 / 拖拽指示)
     char perf_buf[64];

@@ -131,10 +131,110 @@ bool GlobeEngine::projectLatLng(float lat_deg, float lon_deg, int16_t& out_scree
 // Rendering Modules
 // -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// Helper: Fast RGB565 Linear Color Interpolation
+// -------------------------------------------------------------
+static inline uint16_t blendRGB565(uint16_t c1, uint16_t c2, float t) {
+    if (t <= 0.0f) return c1;
+    if (t >= 1.0f) return c2;
+    uint_fast8_t r1 = (c1 >> 11) & 0x1F;
+    uint_fast8_t g1 = (c1 >> 5)  & 0x3F;
+    uint_fast8_t b1 = c1 & 0x1F;
+
+    uint_fast8_t r2 = (c2 >> 11) & 0x1F;
+    uint_fast8_t g2 = (c2 >> 5)  & 0x3F;
+    uint_fast8_t b2 = c2 & 0x1F;
+
+    uint_fast8_t r = r1 + (uint_fast8_t)((r2 - r1) * t);
+    uint_fast8_t g = g1 + (uint_fast8_t)((g2 - g1) * t);
+    uint_fast8_t b = b1 + (uint_fast8_t)((b2 - b1) * t);
+
+    return (r << 11) | (g << 5) | b;
+}
+
 void GlobeEngine::renderOceanGlobe(M5Canvas& canvas, float r) {
-    // 纯正球体深邃大洋底色（完美贴合球心 (cx, cy)，杜绝非同心圆圈产生的错位突兀痕迹）
-    // 采用沉稳深邃的深海蓝 (#081a33 -> 0x08C6)
+    // 纯正球体深邃大洋底色（完美贴合球心 (cx, cy)）
     canvas.fillCircle(cx, cy, (int32_t)r, 0x08C6);
+}
+
+void GlobeEngine::renderTerminatorLine(M5Canvas& canvas, float r) {
+    if (!has_sun_data) return;
+
+    // 太阳直射方向单位向量 S = (Sx, Sy, Sz)
+    float subLatR = sun_pos.subsolar_lat * DEG_TO_RAD;
+    float subLonR = sun_pos.subsolar_lon * DEG_TO_RAD;
+    float Sx = cosf(subLatR) * cosf(subLonR);
+    float Sy = cosf(subLatR) * sinf(subLonR);
+    float Sz = sinf(subLatR);
+
+    // 构造垂直于 S 的正交基底 U, V (使得 P(a) = U*cos(a) + V*sin(a) 正好是晨昏圈)
+    float Ux = -Sy;
+    float Uy = Sx;
+    float Uz = 0.0f;
+    float ulen = sqrtf(Ux * Ux + Uy * Uy);
+    if (ulen > 1e-4f) {
+        Ux /= ulen; Uy /= ulen;
+    } else {
+        Ux = 1.0f; Uy = 0.0f; Uz = 0.0f;
+    }
+
+    float Vx = Sy * Uz - Sz * Uy;
+    float Vy = Sz * Ux - Sx * Uz;
+    float Vz = Sx * Uy - Sy * Ux;
+
+    // 视角中心正弦/余弦
+    float cLatRad = current_pitch;
+    float cLonRad = current_yaw;
+    float sin_cLat = sinf(cLatRad);
+    float cos_cLat = cosf(cLatRad);
+    float sin_cLon = sinf(cLonRad);
+    float cos_cLon = cosf(cLonRad);
+
+    // 晨昏渐变双层落日霞光色（内层霞光金 #F5A623 -> 0xF544，外层柔和暗琥珀 #A05A18 -> 0xA2C3）
+    const uint16_t COL_TERMINATOR_CORE = 0xF544;
+    const uint16_t COL_TERMINATOR_GLOW = 0xA2C3;
+
+    int prevX = -1, prevY = -1;
+    bool prevVis = false;
+
+    // 以 5 度为步长，平滑投影晨昏圈大圆弧线
+    for (int step = 0; step <= 72; step++) {
+        float rad = (step * 5.0f) * DEG_TO_RAD;
+        float ca = cosf(rad);
+        float sa = sinf(rad);
+
+        // 晨昏圈球面点 P = (Px, Py, Pz)
+        float Px = Ux * ca + Vx * sa;
+        float Py = Uy * ca + Vy * sa;
+        float Pz = Uz * ca + Vz * sa;
+
+        // 投影到当前视角 (正交投影)
+        float term2 = Px * cos_cLon + Py * sin_cLon;
+        float cos_c = sin_cLat * Pz + cos_cLat * term2;
+
+        if (cos_c > 0.01f) {
+            float proj_x = r * (Py * cos_cLon - Px * sin_cLon);
+            float proj_y = r * (cos_cLat * Pz - sin_cLat * term2);
+
+            int curX = cx + (int)proj_x;
+            int curY = cy - (int)proj_y;
+
+            if (prevVis) {
+                if (abs(curX - prevX) < 80 && abs(curY - prevY) < 80) {
+                    // 绘制柔和落日霞光晨昏过渡弧
+                    canvas.drawLine(prevX, prevY, curX, curY, COL_TERMINATOR_CORE);
+                    // 外发光增强层次
+                    canvas.drawPixel(curX, curY + 1, COL_TERMINATOR_GLOW);
+                    canvas.drawPixel(curX, curY - 1, COL_TERMINATOR_GLOW);
+                }
+            }
+            prevX = curX;
+            prevY = curY;
+            prevVis = true;
+        } else {
+            prevVis = false;
+        }
+    }
 }
 
 void GlobeEngine::renderAtmosphereGlow(M5Canvas& canvas, float r) {
@@ -144,13 +244,10 @@ void GlobeEngine::renderAtmosphereGlow(M5Canvas& canvas, float r) {
 }
 
 void GlobeEngine::renderHighPrecisionContinents(M5Canvas& canvas, float r) {
-    // 视觉差异化调色板：
-    // 白昼向阳：浅翡翠白金绿 (#4adca8 -> 0x4EEB)
-    // 晨昏过渡带：落日琥珀金 (#e69b22 -> 0xE4C4)
-    // 黑夜背光：深石板青蓝 (#1c3a5e -> 0x19EA)
-    const uint16_t COL_DAY_COAST     = 0x4EEB; 
-    const uint16_t COL_TWILIGHT_COAST= 0xE4C4;
-    const uint16_t COL_NIGHT_COAST   = 0x19EA;
+    // 基础三态色彩
+    const uint16_t COL_DAY_COAST      = 0x4EEB; // 白昼浅翡翠白金绿 (#4adca8)
+    const uint16_t COL_TWILIGHT_COAST = 0xF544; // 晨昏落日琥珀金 (#f5a623)
+    const uint16_t COL_NIGHT_COAST    = 0x19EA; // 黑夜深石板青蓝 (#1c3a5e)
 
     float cLatRad = current_pitch;
     float cLonRad = current_yaw;
@@ -189,18 +286,22 @@ void GlobeEngine::renderHighPrecisionContinents(M5Canvas& canvas, float r) {
 
                 if (prevVis) {
                     if (abs(curX - prevX) < 120 && abs(curY - prevY) < 120) {
-                        // 计算该地点的昼夜光照分界
                         uint16_t lineColor = COL_DAY_COAST;
                         if (has_sun_data) {
                             float cos_lon_sub = cos_lon * cos_subLon + sin_lon * sin_subLon;
                             float cos_solar = sin_subLat * sin_lat + cos_subLat * cos_lat * cos_lon_sub;
 
-                            if (cos_solar > 0.12f) {
-                                lineColor = COL_DAY_COAST;      // 白昼
-                            } else if (cos_solar >= -0.12f) {
-                                lineColor = COL_TWILIGHT_COAST; // 晨昏交界微金线
+                            // 连续无级平滑渐变：消除生硬的阈值跳变
+                            if (cos_solar >= 0.18f) {
+                                lineColor = COL_DAY_COAST;
+                            } else if (cos_solar >= 0.0f) {
+                                float t = cos_solar / 0.18f;
+                                lineColor = blendRGB565(COL_TWILIGHT_COAST, COL_DAY_COAST, t);
+                            } else if (cos_solar >= -0.18f) {
+                                float t = (cos_solar + 0.18f) / 0.18f;
+                                lineColor = blendRGB565(COL_NIGHT_COAST, COL_TWILIGHT_COAST, t);
                             } else {
-                                lineColor = COL_NIGHT_COAST;    // 深夜暗线
+                                lineColor = COL_NIGHT_COAST;
                             }
                         }
                         canvas.drawLine(prevX, prevY, curX, curY, lineColor);
@@ -331,7 +432,10 @@ void GlobeEngine::render(M5Canvas& canvas) {
     // 1. 昼夜大洋球体底色
     renderOceanGlobe(canvas, r);
 
-    // 2. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏落日微金 / 黑夜暗调青灰）
+    // 2. 晨昏分界过渡光弧（大圆日落霞光渐变）
+    renderTerminatorLine(canvas, r);
+
+    // 3. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏平滑渐变 / 黑夜暗调青灰）
     renderHighPrecisionContinents(canvas, r);
 
     // 4. 夜间半球城市星光火（NASA VIIRS 夜光数据采样）
