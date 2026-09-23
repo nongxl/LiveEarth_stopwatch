@@ -43,8 +43,8 @@
 
 | 阶段 | 目标 | 状态 |
 | :--- | :--- | :--- |
-| **Phase 1** | 硬件基础底座（M5Unified/M5GFX/Touch/Buttons/RAM/Flash 监测） | **当前阶段** |
-| **Phase 2** | 3D 地球渲染引擎（球体网格、离线大陆骨架） | 待开发 |
+| **Phase 1** | 硬件基础底座（M5Unified/M5GFX/Touch/Buttons/RAM/Flash 监测） | **已完成** |
+| **Phase 2** | 3D 地球渲染引擎（球体网格、离线大陆骨架、手势旋转） | **已完成** |
 | **Phase 3** | 地理坐标球极投影与视线遮挡剔除 | 待开发 |
 | **Phase 4** | 地理兴趣点 Markers 动态渲染与高亮 | 待开发 |
 | **Phase 5** | 触控手势旋转地球与缩放、Marker 命中选取 | 待开发 |
