@@ -27,6 +27,7 @@ struct PerformanceMetrics {
     uint32_t last_fps_update = 0;
     uint32_t last_frame_time = 0;
     uint32_t last_sun_update = 0;
+    uint32_t last_hud_update = 0;
     float current_fps = 0.0f;
     size_t free_heap_sram = 0;
     size_t free_psram = 0;
@@ -42,8 +43,11 @@ static uint32_t simulated_utc_time = 1790155800;
 // -------------------------------------------------------------
 static void print_system_diagnostics() {
     Serial.println("\n==================================================");
-    Serial.println("  LiveEarth Firmware - Hardware Diagnostics");
+    Serial.println("  LiveEarth High-Performance Viewport Engine");
     Serial.println("  Device: M5Stack Stopwatch (CO5300 AMOLED 466x466)");
+    Serial.printf("  Canvas Size: %dx%d (Offset: %d, %d)\n", 
+                  GLOBE_CANVAS_SIZE, GLOBE_CANVAS_SIZE, 
+                  GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
     Serial.println("==================================================");
 
     Serial.printf("Chip Model:        %s (Rev %d)\n", ESP.getChipModel(), ESP.getChipRevision());
@@ -75,6 +79,62 @@ static void print_system_diagnostics() {
 }
 
 // -------------------------------------------------------------
+// Round HUD Overlays (Rendered directly on M5.Display)
+// -------------------------------------------------------------
+static void draw_static_hud_markers() {
+    // 四方微标 (N / S / W / E)
+    M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("N", SCREEN_CENTER_X, SCREEN_CENTER_Y - SAFE_UI_RADIUS + 14);
+    M5.Display.drawString("S", SCREEN_CENTER_X, SCREEN_CENTER_Y + SAFE_UI_RADIUS - 14);
+    M5.Display.drawString("W", SCREEN_CENTER_X - SAFE_UI_RADIUS + 14, SCREEN_CENTER_Y);
+    M5.Display.drawString("E", SCREEN_CENTER_X + SAFE_UI_RADIUS - 14, SCREEN_CENTER_Y);
+
+    // 顶部主标题
+    M5.Display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
+    M5.Display.setTextSize(2);
+    M5.Display.drawString("LIVE EARTH", SCREEN_CENTER_X, 36);
+}
+
+static void update_dynamic_hud() {
+    // 1. 顶部视界经纬度信息
+    float center_lat = globe.getPitch() * RAD_TO_DEG;
+    float center_lon = globe.getYaw() * RAD_TO_DEG;
+    char view_buf[48];
+    snprintf(view_buf, sizeof(view_buf), "VIEW: %4.1f%c, %5.1f%c",
+             fabsf(center_lat), (center_lat >= 0 ? 'N' : 'S'),
+             fabsf(center_lon), (center_lon >= 0 ? 'E' : 'W'));
+
+    M5.Display.setTextColor(0xD69A, COLOR_BG);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString(view_buf, SCREEN_CENTER_X, 58);
+
+    // 2. 太阳直射位置
+    char sun_buf[48];
+    float slat = globe.getSubsolarLat();
+    float slon = globe.getSubsolarLon();
+    snprintf(sun_buf, sizeof(sun_buf), "SUN:  %4.1f%c, %5.1f%c",
+             fabsf(slat), (slat >= 0 ? 'N' : 'S'),
+             fabsf(slon), (slon >= 0 ? 'E' : 'W'));
+    M5.Display.setTextColor(0xFD64, COLOR_BG); // 暖金
+    M5.Display.drawString(sun_buf, SCREEN_CENTER_X, 72);
+
+    // 3. 底部状态栏 HUD (FPS / 内存指标 / 拖拽指示)
+    char perf_buf[64];
+    snprintf(perf_buf, sizeof(perf_buf), "FPS: %4.1f | DRAG TO ROTATE", perf.current_fps);
+    M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    M5.Display.drawString(perf_buf, SCREEN_CENTER_X, 405);
+
+    char mem_buf[64];
+    snprintf(mem_buf, sizeof(mem_buf), "SRAM: %uKB | PSRAM: %uKB",
+             (uint32_t)(perf.free_heap_sram / 1024),
+             (uint32_t)(perf.free_psram / 1024));
+    M5.Display.drawString(mem_buf, SCREEN_CENTER_X, 425);
+}
+
+// -------------------------------------------------------------
 // Setup
 // -------------------------------------------------------------
 void setup() {
@@ -91,18 +151,21 @@ void setup() {
     // 屏幕与背光设置
     M5.Display.setBrightness(180);
     M5.Display.setRotation(0);
+    M5.Display.fillScreen(COLOR_BG);
 
-    // 在 8MB PSRAM 中分配 466x466 16位全屏画布
+    draw_static_hud_markers();
+
+    // 在 PSRAM 中分配精简 320x320 视口画布 (节约 53% 显存与总线搬运开销)
     canvas.setColorDepth(16);
     canvas.setPsram(true);
-    if (!canvas.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT)) {
-        Serial.println("[ERROR] Failed to allocate Canvas in PSRAM!");
+    if (!canvas.createSprite(GLOBE_CANVAS_SIZE, GLOBE_CANVAS_SIZE)) {
+        Serial.println("[ERROR] Failed to allocate 320x320 Canvas in PSRAM!");
     } else {
-        Serial.println("[OK] 466x466 Canvas successfully created in PSRAM.");
+        Serial.println("[OK] 320x320 High-Performance Canvas created in PSRAM.");
     }
 
-    // 初始化 3D 地球引擎
-    globe.init(SCREEN_CENTER_X, SCREEN_CENTER_Y, 155.0f);
+    // 初始化 3D 地球引擎 (以 320x320 画布为中心 160, 160)
+    globe.init(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, GLOBE_DEFAULT_RADIUS);
 
     // 计算初次太阳直射点
     SunPosition init_sun = sun_calc.calculate(simulated_utc_time);
@@ -111,59 +174,7 @@ void setup() {
     perf.last_fps_update = millis();
     perf.last_frame_time = millis();
     perf.last_sun_update = millis();
-}
-
-// -------------------------------------------------------------
-// Round HUD Overlays
-// -------------------------------------------------------------
-static void draw_circular_overlays() {
-    // 1. 四方微标 (N / S / W / E)
-    canvas.setTextColor(COLOR_TEXT_MUTED);
-    canvas.setTextDatum(middle_center);
-    canvas.setTextSize(1);
-    canvas.drawString("N", SCREEN_CENTER_X, SCREEN_CENTER_Y - SAFE_UI_RADIUS + 14);
-    canvas.drawString("S", SCREEN_CENTER_X, SCREEN_CENTER_Y + SAFE_UI_RADIUS - 14);
-    canvas.drawString("W", SCREEN_CENTER_X - SAFE_UI_RADIUS + 14, SCREEN_CENTER_Y);
-    canvas.drawString("E", SCREEN_CENTER_X + SAFE_UI_RADIUS - 14, SCREEN_CENTER_Y);
-
-    // 3. 顶部信息：标题与中心经纬度视点
-    canvas.setTextColor(COLOR_ACCENT_CYAN);
-    canvas.setTextDatum(middle_center);
-    canvas.setTextSize(2);
-    canvas.drawString("LIVE EARTH", SCREEN_CENTER_X, 55);
-
-    float center_lat = globe.getPitch() * RAD_TO_DEG;
-    float center_lon = globe.getYaw() * RAD_TO_DEG;
-    char view_buf[48];
-    snprintf(view_buf, sizeof(view_buf), "VIEW: %.1f%c, %.1f%c",
-             fabsf(center_lat), (center_lat >= 0 ? 'N' : 'S'),
-             fabsf(center_lon), (center_lon >= 0 ? 'E' : 'W'));
-
-    canvas.setTextColor(0xD69A);
-    canvas.setTextSize(1);
-    canvas.drawString(view_buf, SCREEN_CENTER_X, 78);
-
-    // 太阳直射位置小字提示
-    char sun_buf[48];
-    float slat = globe.getSubsolarLat();
-    float slon = globe.getSubsolarLon();
-    snprintf(sun_buf, sizeof(sun_buf), "SUN: %.1f%c, %.1f%c",
-             fabsf(slat), (slat >= 0 ? 'N' : 'S'),
-             fabsf(slon), (slon >= 0 ? 'E' : 'W'));
-    canvas.setTextColor(0xFD64); // 暖金
-    canvas.drawString(sun_buf, SCREEN_CENTER_X, 94);
-
-    // 4. 底部状态栏 HUD (FPS / 内存指标 / 拖拽指示)
-    char perf_buf[64];
-    snprintf(perf_buf, sizeof(perf_buf), "FPS: %.1f | DRAG TO ROTATE", perf.current_fps);
-    canvas.setTextColor(COLOR_TEXT_MUTED);
-    canvas.drawString(perf_buf, SCREEN_CENTER_X, 395);
-
-    char mem_buf[64];
-    snprintf(mem_buf, sizeof(mem_buf), "SRAM: %uKB | PSRAM: %uKB",
-             (uint32_t)(perf.free_heap_sram / 1024),
-             (uint32_t)(perf.free_psram / 1024));
-    canvas.drawString(mem_buf, SCREEN_CENTER_X, 415);
+    perf.last_hud_update = millis();
 }
 
 // -------------------------------------------------------------
@@ -180,7 +191,7 @@ void loop() {
     // 1. 每 2 秒微调时间并更新太阳直射点
     if (now - perf.last_sun_update >= 2000) {
         perf.last_sun_update = now;
-        simulated_utc_time += 2; // 真实时间流动
+        simulated_utc_time += 2;
         SunPosition cur_sun = sun_calc.calculate(simulated_utc_time);
         globe.setSunPosition(cur_sun.subsolar_lat, cur_sun.subsolar_lon);
     }
@@ -234,13 +245,21 @@ void loop() {
         perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     }
 
-    // 6. 渲染画面
+    // 6. 高速渲染管线 (锁定总线事务传输)
+    M5.Display.startWrite();
+
+    // 6.1 在 320x320 视口画布中渲染 3D 地球
     canvas.fillScreen(COLOR_BG);
     globe.render(canvas);
-    draw_circular_overlays();
 
-    // 7. 推送至物理 AMOLED 屏幕
-    canvas.pushSprite(0, 0);
+    // 6.2 高速推送到屏幕中央 (73, 73)
+    canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
 
-    delay(2);
+    // 6.3 定时刷新动态 HUD 文字 (每 100ms 刷新一次，零拖慢主渲染管线)
+    if (now - perf.last_hud_update >= 100) {
+        perf.last_hud_update = now;
+        update_dynamic_hud();
+    }
+
+    M5.Display.endWrite();
 }

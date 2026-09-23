@@ -1,3 +1,6 @@
+#pragma GCC optimize ("O3")
+#pragma GCC optimize ("fast-math")
+
 #include "globe.h"
 #include "earth_data.h"
 #include "light_points_data.h"
@@ -14,8 +17,8 @@
 #define DAMPING 0.92f
 
 GlobeEngine::GlobeEngine()
-    : cx(SCREEN_CENTER_X), cy(SCREEN_CENTER_Y),
-      base_radius(155.0f), current_zoom(1.0f),
+    : cx(GLOBE_CANVAS_CENTER), cy(GLOBE_CANVAS_CENTER),
+      base_radius(GLOBE_DEFAULT_RADIUS), current_zoom(1.0f),
       current_pitch(28.0f * DEG_TO_RAD), current_yaw(115.0f * DEG_TO_RAD),
       vel_pitch(0.0f), vel_yaw(0.001f),
       has_sun_data(true)
@@ -135,93 +138,9 @@ void GlobeEngine::renderOceanGlobe(M5Canvas& canvas, float r) {
 }
 
 void GlobeEngine::renderAtmosphereGlow(M5Canvas& canvas, float r) {
-    // 多重微光大气光晕（向阳侧增强，背光侧隐约可见）
+    // 柔和微光大气层边缘光晕
     canvas.drawCircle(cx, cy, (int32_t)(r + 1), 0x22AD); // 浅钴蓝边界
     canvas.drawCircle(cx, cy, (int32_t)(r + 2), 0x1188); // 柔和渐变
-    canvas.drawCircle(cx, cy, (int32_t)(r + 4), 0x0905); // 深层弥散
-}
-
-void GlobeEngine::renderGraticule(M5Canvas& canvas, float r) {
-    const uint16_t GRID_DAY_COLOR = 0x19E8;   // 白昼微弱网格
-    const uint16_t GRID_NIGHT_COLOR = 0x08E3; // 夜间极淡网格
-    const uint16_t EQUATOR_COLOR = 0x2BAE;    // 赤道发光线
-
-    float cLatRad = current_pitch;
-    float cLonRad = current_yaw;
-    float sin_cLat = sinf(cLatRad);
-    float cos_cLat = cosf(cLatRad);
-    float cos_cLon = cosf(cLonRad);
-    float sin_cLon = sinf(cLonRad);
-
-    // 纬线圈：[-60°, -30°, 0°(赤道), +30°, +60°]
-    static const float LAT_STEPS[] = {-60.0f, -30.0f, 0.0f, 30.0f, 60.0f};
-    for (float lat : LAT_STEPS) {
-        float latRad = lat * DEG_TO_RAD;
-        float sin_lat = sinf(latRad);
-        float cos_lat = cosf(latRad);
-        bool is_equator = (lat == 0.0f);
-
-        int prevX = -1, prevY = -1;
-        bool prevVis = false;
-
-        for (int step = 0; step <= 36; step++) {
-            float lonRad = (-180.0f + step * 10.0f) * DEG_TO_RAD;
-            float cos_lon = cosf(lonRad);
-            float sin_lon = sinf(lonRad);
-
-            float cos_dLon = cos_lon * cos_cLon + sin_lon * sin_cLon;
-            float sin_dLon = sin_lon * cos_cLon - cos_lon * sin_cLon;
-
-            float cos_c = sin_cLat * sin_lat + cos_cLat * cos_lat * cos_dLon;
-            if (cos_c > 0.02f) {
-                int curX = cx + (int)(r * cos_lat * sin_dLon);
-                int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
-
-                if (prevVis) {
-                    canvas.drawLine(prevX, prevY, curX, curY, is_equator ? EQUATOR_COLOR : GRID_DAY_COLOR);
-                }
-                prevX = curX;
-                prevY = curY;
-                prevVis = true;
-            } else {
-                prevVis = false;
-            }
-        }
-    }
-
-    // 经线圈：每 30° 一条
-    for (float lon = -180.0f; lon < 180.0f; lon += 30.0f) {
-        float lonRad = lon * DEG_TO_RAD;
-        float cos_lon = cosf(lonRad);
-        float sin_lon = sinf(lonRad);
-
-        float cos_dLon = cos_lon * cos_cLon + sin_lon * sin_cLon;
-        float sin_dLon = sin_lon * cos_cLon - cos_lon * sin_cLon;
-
-        int prevX = -1, prevY = -1;
-        bool prevVis = false;
-
-        for (int step = 0; step <= 24; step++) {
-            float latRad = (-80.0f + step * (160.0f / 24.0f)) * DEG_TO_RAD;
-            float sin_lat = sinf(latRad);
-            float cos_lat = cosf(latRad);
-
-            float cos_c = sin_cLat * sin_lat + cos_cLat * cos_lat * cos_dLon;
-            if (cos_c > 0.02f) {
-                int curX = cx + (int)(r * cos_lat * sin_dLon);
-                int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
-
-                if (prevVis) {
-                    canvas.drawLine(prevX, prevY, curX, curY, GRID_DAY_COLOR);
-                }
-                prevX = curX;
-                prevY = curY;
-                prevVis = true;
-            } else {
-                prevVis = false;
-            }
-        }
-    }
 }
 
 void GlobeEngine::renderHighPrecisionContinents(M5Canvas& canvas, float r) {
@@ -314,8 +233,8 @@ void GlobeEngine::renderCityNightLights(M5Canvas& canvas, float r) {
     float sin_subLon = sinf(subLonR);
     float cos_subLon = cosf(subLonR);
 
-    // 针对 466x466 屏幕，精选步长采样（step = 2 遍历 6000 点，兼顾极高密度与 40+ FPS）
-    const int step = 2;
+    // 针对 466x466 屏幕，精选步长采样（step = 4 遍历 3000 点，兼顾极高密度与 40+ FPS）
+    const int step = 4;
     for (int i = 0; i < light_points_count; i += step) {
         float sin_lat = light_points[i].sinLat;
         float cos_lat = light_points[i].cosLat;
@@ -412,10 +331,7 @@ void GlobeEngine::render(M5Canvas& canvas) {
     // 1. 昼夜大洋球体底色
     renderOceanGlobe(canvas, r);
 
-    // 2. 3D 经纬线网格
-    renderGraticule(canvas, r);
-
-    // 3. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏落日微金 / 黑夜暗调青灰）
+    // 2. 高精度多路径陆地轮廓（白昼翡翠亮线 / 晨昏落日微金 / 黑夜暗调青灰）
     renderHighPrecisionContinents(canvas, r);
 
     // 4. 夜间半球城市星光火（NASA VIIRS 夜光数据采样）
