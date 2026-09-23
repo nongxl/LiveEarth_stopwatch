@@ -1,14 +1,17 @@
 #include <M5Unified.h>
 #include <esp_heap_caps.h>
+#include <time.h>
 #include "config.h"
 #include "generated_data.h"
 #include "globe.h"
+#include "sun_calc.h"
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
 // -------------------------------------------------------------
 static M5Canvas canvas(&M5.Display);
 static GlobeEngine globe;
+static SunCalculator sun_calc;
 
 struct TouchGestureState {
     int16_t last_x = -1;
@@ -23,12 +26,16 @@ struct PerformanceMetrics {
     uint32_t frame_count = 0;
     uint32_t last_fps_update = 0;
     uint32_t last_frame_time = 0;
+    uint32_t last_sun_update = 0;
     float current_fps = 0.0f;
     size_t free_heap_sram = 0;
     size_t free_psram = 0;
 } perf;
 
 static uint32_t btn_click_count = 0;
+
+// 默认基准时间：2026年9月23日 09:30:00 UTC (1790155800)
+static uint32_t simulated_utc_time = 1790155800;
 
 // -------------------------------------------------------------
 // Helper: Print System & Memory Diagnostics
@@ -97,8 +104,13 @@ void setup() {
     // 初始化 3D 地球引擎
     globe.init(SCREEN_CENTER_X, SCREEN_CENTER_Y, 155.0f);
 
+    // 计算初次太阳直射点
+    SunPosition init_sun = sun_calc.calculate(simulated_utc_time);
+    globe.setSunPosition(init_sun.subsolar_lat, init_sun.subsolar_lon);
+
     perf.last_fps_update = millis();
     perf.last_frame_time = millis();
+    perf.last_sun_update = millis();
 }
 
 // -------------------------------------------------------------
@@ -122,7 +134,7 @@ static void draw_circular_overlays() {
     canvas.setTextColor(COLOR_ACCENT_CYAN);
     canvas.setTextDatum(middle_center);
     canvas.setTextSize(2);
-    canvas.drawString("LIVE EARTH", SCREEN_CENTER_X, 60);
+    canvas.drawString("LIVE EARTH", SCREEN_CENTER_X, 55);
 
     float center_lat = globe.getPitch() * RAD_TO_DEG;
     float center_lon = globe.getYaw() * RAD_TO_DEG;
@@ -133,7 +145,17 @@ static void draw_circular_overlays() {
 
     canvas.setTextColor(0xD69A);
     canvas.setTextSize(1);
-    canvas.drawString(view_buf, SCREEN_CENTER_X, 85);
+    canvas.drawString(view_buf, SCREEN_CENTER_X, 78);
+
+    // 太阳直射位置小字提示
+    char sun_buf[48];
+    float slat = globe.getSubsolarLat();
+    float slon = globe.getSubsolarLon();
+    snprintf(sun_buf, sizeof(sun_buf), "SUN: %.1f%c, %.1f%c",
+             fabsf(slat), (slat >= 0 ? 'N' : 'S'),
+             fabsf(slon), (slon >= 0 ? 'E' : 'W'));
+    canvas.setTextColor(0xFD64); // 暖金
+    canvas.drawString(sun_buf, SCREEN_CENTER_X, 94);
 
     // 4. 底部状态栏 HUD (FPS / 内存指标 / 拖拽指示)
     char perf_buf[64];
@@ -159,14 +181,22 @@ void loop() {
     if (dt_sec > 0.1f) dt_sec = 0.1f;
     perf.last_frame_time = now;
 
-    // 1. 物理按键处理：一键复位视角
+    // 1. 每 2 秒微调时间并更新太阳直射点
+    if (now - perf.last_sun_update >= 2000) {
+        perf.last_sun_update = now;
+        simulated_utc_time += 2; // 真实时间流动
+        SunPosition cur_sun = sun_calc.calculate(simulated_utc_time);
+        globe.setSunPosition(cur_sun.subsolar_lat, cur_sun.subsolar_lon);
+    }
+
+    // 2. 物理按键处理：一键复位视角
     if (M5.BtnA.wasPressed()) {
         btn_click_count++;
         Serial.printf("[BtnA] Resetting globe orientation to default.\n");
         globe.resetOrientation();
     }
 
-    // 2. 触控手势处理 (拖拽旋转地球)
+    // 3. 触控手势处理 (拖拽旋转地球)
     auto detail = M5.Touch.getDetail();
     if (detail.isPressed()) {
         int16_t cur_x = detail.x;
@@ -195,10 +225,10 @@ void loop() {
         touch_state.last_y = -1;
     }
 
-    // 3. 物理惯性更新
+    // 4. 物理惯性更新
     globe.update(dt_sec);
 
-    // 4. 统计帧率与内存
+    // 5. 统计帧率与内存
     perf.frame_count++;
     if (now - perf.last_fps_update >= 500) {
         perf.current_fps = (perf.frame_count * 1000.0f) / (float)(now - perf.last_fps_update);
@@ -208,12 +238,12 @@ void loop() {
         perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     }
 
-    // 5. 渲染画面
+    // 6. 渲染画面
     canvas.fillScreen(COLOR_BG);
     globe.render(canvas);
     draw_circular_overlays();
 
-    // 6. 推送至物理 AMOLED 屏幕
+    // 7. 推送至物理 AMOLED 屏幕
     canvas.pushSprite(0, 0);
 
     delay(2);
