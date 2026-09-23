@@ -1,0 +1,31 @@
+[
+  {
+    "candidate_id": "cand-jp-shibuya-crossing",
+    "place": "Shibuya Crossing, Tokyo",
+    "camera": "Shibuya Tsutaya 2F Public Perspective",
+    "source_url": "https://www.youtube.com/watch?v=dfb30",
+    "evidence_url": "https://live-cam.tokyo/shibuya",
+    "permission_status": "REVIEW_REQUIRED",
+    "reason": "YouTube Live embeds permit playback via iframe, but direct frame extraction for standalone IoT devices requires verifying the broadcast license or using the official municipal tourism stream.",
+    "questions": [
+      "Does the municipal operator permit direct image extraction for embedded display?",
+      "Is there an official Tokyo Metropolitan Government snapshot API available for Shibuya?",
+      "Can we obtain explicit redistribution or viewing permission from the content rights holder?"
+    ],
+    "discovered_at": "2026-09-23T15:30:00Z"
+  },
+  {
+    "candidate_id": "cand-ch-zermatt-matterhorn",
+    "place": "Matterhorn, Zermatt",
+    "camera": "Gornergrat Observatory Webcam",
+    "source_url": "https://www.zermatt.ch/en/webcams",
+    "evidence_url": "https://zermatt.roundshot.com/gornergrat/",
+    "permission_status": "REVIEW_REQUIRED",
+    "reason": "Roundshot camera feed hosted by Zermatt Tourism. Need to check Roundshot / Zermatt Bergbahnen terms of use regarding third-party embedded non-commercial viewing.",
+    "questions": [
+      "Are static snapshot tiles from Roundshot CDN accessible without origin headers?",
+      "Is an API key or formal syndication agreement required for embedded non-browser clients?"
+    ],
+    "discovered_at": "2026-09-23T16:00:00Z"
+  }
+]

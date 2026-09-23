@@ -1,0 +1,35 @@
+[
+  {
+    "id": "src-fujigoko-tv",
+    "name": "Fuji Five Lakes TV (Official Tourism)",
+    "tier": "TIER_A",
+    "country": "Japan",
+    "operator": "Fujigoko TV / Yamanashi Tourism Association",
+    "official_website": "https://www.fujigoko.tv",
+    "permission_basis": "Official public weather and destination webcam broadcast",
+    "license": "Public Tourism Stream",
+    "redistribution_notes": "Official public snapshot endpoint available for public view."
+  },
+  {
+    "id": "src-earthcam-official",
+    "name": "EarthCam Public Tourism Feeds",
+    "tier": "TIER_B",
+    "country": "United States",
+    "operator": "EarthCam Inc.",
+    "official_website": "https://www.earthcam.com",
+    "permission_basis": "Public promotional viewports explicitly designated for community observation",
+    "license": "Public View",
+    "redistribution_notes": "Direct camera viewing link / snapshots subject to terms of service."
+  },
+  {
+    "id": "src-volcano-usgs",
+    "name": "USGS Volcano Hazards Program",
+    "tier": "TIER_A",
+    "country": "United States",
+    "operator": "United States Geological Survey",
+    "official_website": "https://www.usgs.gov/programs/VHP",
+    "permission_basis": "US Federal Government Public Domain data",
+    "license": "US Public Domain",
+    "redistribution_notes": "All USGS live webcams are public domain."
+  }
+]

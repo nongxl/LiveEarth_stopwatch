@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LiveEarthCamera",
+  "type": "object",
+  "required": [
+    "id",
+    "place_id",
+    "name",
+    "latitude",
+    "longitude",
+    "source_type",
+    "source_name",
+    "source_url",
+    "evidence_url",
+    "permission_status",
+    "permission_basis",
+    "last_verified",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^cam-[a-z0-9\\-]+$"
+    },
+    "place_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 3
+    },
+    "latitude": {
+      "type": "number",
+      "minimum": -90.0,
+      "maximum": 90.0
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": -180.0,
+      "maximum": 180.0
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["snapshot", "mjpeg", "hls"]
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "evidence_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "permission_status": {
+      "type": "string",
+      "enum": ["APPROVED", "REVIEW_REQUIRED", "REJECTED", "EXPIRED"]
+    },
+    "permission_basis": {
+      "type": "string",
+      "minLength": 10
+    },
+    "last_verified": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ONLINE", "OFFLINE", "UNKNOWN"]
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "stream_type": {
+      "type": "string"
+    },
+    "stream_url": {
+      "type": "string"
+    }
+  }
+}

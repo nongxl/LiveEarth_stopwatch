@@ -1,0 +1,44 @@
+[
+  {
+    "id": "mountain",
+    "name": "Mountain & Volcano",
+    "icon": "mountain",
+    "description": "Peaks, volcanic summits, alpine ridges and glaciers."
+  },
+  {
+    "id": "city",
+    "name": "City & Skyline",
+    "icon": "city",
+    "description": "Urban skylines, downtown avenues, public squares and iconic landmarks."
+  },
+  {
+    "id": "coast",
+    "name": "Coast & Waters",
+    "icon": "water",
+    "description": "Beaches, reefs, sea cliffs, lakes and riverfronts."
+  },
+  {
+    "id": "transport",
+    "name": "Transport & Infrastructure",
+    "icon": "plane",
+    "description": "Airports, harbours, railway stations, suspension bridges and cable cars."
+  },
+  {
+    "id": "culture",
+    "name": "Culture & Heritage",
+    "icon": "landmark",
+    "description": "Ancient temples, shrines, castles, historic districts and museums."
+  },
+  {
+    "id": "wildlife",
+    "name": "Wildlife & Nature Reserves",
+    "icon": "paw",
+    "description": "National parks, wildlife sanctuaries, underwater cameras and safaris."
+  },
+  {
+    "id": "special",
+    "name": "Special & Scientific",
+    "icon": "telescope",
+    "description": "Astronomical observatories, space centers, aurora stations and weather radars."
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "jp-mt-fuji",
+    "name": "Mount Fuji",
+    "local_name": "富士山",
+    "country": "Japan",
+    "region": "Yamanashi / Shizuoka",
+    "latitude": 35.3606,
+    "longitude": 138.7274,
+    "category": "mountain",
+    "description": "Japan's highest and most revered peak, standing at 3,776 meters. An active stratovolcano and UNESCO World Heritage site iconic for its snow-capped symmetry.",
+    "highlights": [
+      "Lake Kawaguchiko scenic reflection",
+      "Sacred summit crater view",
+      "Iconic seasonal snow crown",
+      "Surrounded by the Fuji Five Lakes"
+    ],
+    "cameras": [
+      "cam-fuji-kawaguchiko"
+    ]
+  },
+  {
+    "id": "us-kilauea-volcano",
+    "name": "Kilauea Volcano",
+    "local_name": "Kīlauea",
+    "country": "United States",
+    "region": "Hawaii",
+    "latitude": 19.4069,
+    "longitude": -155.2833,
+    "category": "mountain",
+    "description": "One of the world's most active shield volcanoes located inside Hawaii Volcanoes National Park. Its summit crater Halemaʻumaʻu frequently hosts dynamic lava lakes.",
+    "highlights": [
+      "Halemaʻumaʻu summit crater",
+      "Continuous scientific monitoring",
+      "Glowing night volcanic vents",
+      "Dynamic Hawaiian hotspot caldera"
+    ],
+    "cameras": [
+      "cam-kilauea-halemaumau"
+    ]
+  },
+  {
+    "id": "us-times-square",
+    "name": "Times Square",
+    "local_name": "Times Square",
+    "country": "United States",
+    "region": "New York",
+    "latitude": 40.7580,
+    "longitude": -73.9855,
+    "category": "city",
+    "description": "The bustling commercial and entertainment nexus of Midtown Manhattan, famously known as the Crossroads of the World and illuminated around the clock by massive billboards.",
+    "highlights": [
+      "World-famous Broadway theater district",
+      "Iconic electronic digital billboards",
+      "Duffy Square red steps gathering point",
+      "Major global pedestrian hub"
+    ],
+    "cameras": [
+      "cam-times-square-broadway"
+    ]
+  }
+]
