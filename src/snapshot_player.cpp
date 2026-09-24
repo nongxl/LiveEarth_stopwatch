@@ -201,7 +201,8 @@ void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             // M5GFX 硬件解码 JPEG 并从左上角 (x, y) 适配渲染到卡片视口
-            display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
+            bool ok = display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
+            Serial.printf("[SnapshotPlayer] drawJpg Preview (%d,%d,%d,%d) res=%d, size=%u\n", x, y, w, h, ok ? 1 : 0, (uint32_t)buffer_size);
             xSemaphoreGive(buffer_mutex);
         }
     }
@@ -211,7 +212,8 @@ void SnapshotPlayer::renderFullscreen(M5GFX& display, int16_t x, int16_t y, int1
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             // 全屏视窗从左上角 (x, y) 开始解码绘制
-            display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
+            bool ok = display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
+            Serial.printf("[SnapshotPlayer] drawJpg Fullscreen (%d,%d,%d,%d) res=%d, size=%u\n", x, y, w, h, ok ? 1 : 0, (uint32_t)buffer_size);
             xSemaphoreGive(buffer_mutex);
         }
     }
