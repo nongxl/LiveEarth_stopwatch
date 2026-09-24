@@ -16,6 +16,8 @@ struct PlaceLocation {
     const char* region;
     float latitude;
     float longitude;
+    int elevation_m;
+    int8_t utc_offset;
     const char* category;
     uint16_t theme_color;
     const char* description;

@@ -85,17 +85,22 @@ void PlaceDetailView::drawLeftPanel(M5GFX& display, const PlaceLocation* place) 
     display.setTextDatum(middle_center);
     display.setTextSize(1);
 
-    // 第 1 组: 海拔或高度 (Y: 154)
+    // 第 1 组: 真实海拔高度 (Y: 154)
     display.setTextColor(0x4EEB, COLOR_BG); // 翡翠亮青
-    display.drawString((strcmp(place->category, "mountain") == 0 ? "3,776M" : "COASTAL"), lx, 154);
+    char elev_buf[16];
+    if (place->elevation_m >= 1000) {
+        snprintf(elev_buf, sizeof(elev_buf), "%d,%03dM", place->elevation_m / 1000, abs(place->elevation_m % 1000));
+    } else {
+        snprintf(elev_buf, sizeof(elev_buf), "%dM", place->elevation_m);
+    }
+    display.drawString(elev_buf, lx, 154);
     display.setTextColor(0x7BEF, COLOR_BG); // 灰色标签
     display.drawString("ELEVATION", lx, 170);
 
-    // 第 2 组: 时区信息 (Y: 208)
+    // 第 2 组: 真实法定当地时区 (Y: 208)
     display.setTextColor(0xFDC0, COLOR_BG); // 暖金
-    int tz_offset = (int)(place->longitude / 15.0f);
     char tz_str[16];
-    snprintf(tz_str, sizeof(tz_str), "UTC%+d", tz_offset);
+    snprintf(tz_str, sizeof(tz_str), "UTC%+d", place->utc_offset);
     display.drawString(tz_str, lx, 208);
     display.setTextColor(0x7BEF, COLOR_BG);
     display.drawString("TIMEZONE", lx, 224);
