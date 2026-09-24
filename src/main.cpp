@@ -40,7 +40,12 @@ struct TouchGestureState {
     uint32_t last_tap_ms = 0;
     int last_hit_idx = -1;
 
-    // 双指多点触控实时缩放
+    // 缩放手势控制 (适配 CST816S 单点触控硬件)
+    bool is_edge_zooming = false;
+    bool is_double_tap_drag = false;
+    uint32_t last_zoom_ui_ms = 0;
+
+    // 双指多点触控（若硬件/仿真器支持）
     bool is_pinching = false;
     float last_pinch_dist = 0.0f;
 } touch_state;
@@ -163,9 +168,59 @@ static void update_dynamic_hud() {
     }
 
     char perf_buf[64];
-    snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | DRAG ROTATE | TAP MARKER", perf.current_fps);
+    snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | DRAG ROTATE | RIGHT SLIDE ZOOM", perf.current_fps);
     M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
     M5.Display.drawString(perf_buf, SCREEN_CENTER_X, 426);
+}
+
+static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
+    if (current_view_state != VIEW_GLOBE) return;
+
+    bool is_active = touch_state.is_edge_zooming || touch_state.is_double_tap_drag || (now - touch_state.last_zoom_ui_ms < 1400);
+
+    if (!is_active) {
+        // 静止态：右侧边缘微光拉手把柄 (X: 452~466, Y: 213~253)，与左边缘抽屉拉手对称呼应
+        float pulse = 0.5f + 0.5f * sinf(now * 0.003f);
+        uint16_t h_col = (pulse > 0.4f) ? 0xFDC0 : 0x2354;
+
+        display.fillRoundRect(SCREEN_WIDTH - 14, 213, 20, 40, 6, 0x0842);
+        display.drawRoundRect(SCREEN_WIDTH - 14, 213, 20, 40, 6, h_col);
+
+        display.setTextDatum(middle_center);
+        display.setTextSize(1);
+        display.setTextColor(0xFFFF, 0x0842);
+        display.drawString("+", SCREEN_WIDTH - 6, 224);
+        display.drawString("-", SCREEN_WIDTH - 6, 240);
+        return;
+    }
+
+    // 激活态：右侧 60 度弧形标尺 (330° ~ 30°)
+    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 222, 330, 30, 0x4EEB);
+    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 227, 221, 330, 30, 0x1B55);
+
+    float cur_z = globe.getZoom();
+    // 0.65x ~ 2.2x 归一化映射
+    float norm = (cur_z - 0.65f) / (2.2f - 0.65f);
+    if (norm < 0.0f) norm = 0.0f;
+    if (norm > 1.0f) norm = 1.0f;
+    // 角度：下方为缩小 (+25°)，上方为放大 (-25°)
+    float angle_deg = 25.0f - norm * 50.0f;
+    float rad = angle_deg * DEG_TO_RAD;
+
+    int16_t kx = SCREEN_CENTER_X + (int16_t)(cosf(rad) * 224.0f);
+    int16_t ky = SCREEN_CENTER_Y + (int16_t)(sinf(rad) * 224.0f);
+    display.fillCircle(kx, ky, 5, 0x07E0);
+    display.drawCircle(kx, ky, 7, 0xFFFF);
+
+    // 浮动发光胶囊倍率徽章 (如 "1.4x")
+    char z_buf[16];
+    snprintf(z_buf, sizeof(z_buf), "%.1fx", cur_z);
+    display.fillRoundRect(SCREEN_WIDTH - 68, 221, 50, 24, 4, 0x0842);
+    display.drawRoundRect(SCREEN_WIDTH - 68, 221, 50, 24, 4, 0x4EEB);
+    display.setTextDatum(middle_center);
+    display.setTextSize(1);
+    display.setTextColor(0xFFFF, 0x0842);
+    display.drawString(z_buf, SCREEN_WIDTH - 43, 233);
 }
 
 // -------------------------------------------------------------
@@ -372,19 +427,39 @@ void loop() {
             if (!touch_state.was_pressed) {
                 touch_state.was_pressed = true;
                 touch_state.is_dragging = false;
+                touch_state.is_edge_zooming = false;
+                touch_state.is_double_tap_drag = false;
                 touch_state.start_x = cur_x;
                 touch_state.start_y = cur_y;
                 touch_state.last_x = cur_x;
                 touch_state.last_y = cur_y;
                 touch_state.touch_start_ms = now;
+
+                if (current_view_state == VIEW_GLOBE) {
+                    if (cur_x > 395) {
+                        // 1. 命中右侧边缘区域：进入边缘滑轨缩放模式
+                        touch_state.is_edge_zooming = true;
+                        touch_state.last_zoom_ui_ms = now;
+                    } else if (now - touch_state.last_tap_ms < 380) {
+                        // 2. 快速双击后按住拖动 (Double-tap & Drag)：单手平滑缩放
+                        touch_state.is_double_tap_drag = true;
+                        touch_state.last_zoom_ui_ms = now;
+                    }
+                }
             } else {
                 float dx = (float)(cur_x - touch_state.last_x);
                 float dy = (float)(cur_y - touch_state.last_y);
                 float total_dx = (float)(cur_x - touch_state.start_x);
                 float total_dy = (float)(cur_y - touch_state.start_y);
 
-                // 在地球仪模式或预览模式下的下半区地球仪拖拽
-                if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
+                if (touch_state.is_edge_zooming || touch_state.is_double_tap_drag) {
+                    // 垂直滑动连续无级缩放地球仪 (向上推放大，向下拉缩小)
+                    if (fabsf(dy) > 0.6f) {
+                        globe.handlePinch(-dy * 0.0075f);
+                        touch_state.last_zoom_ui_ms = now;
+                    }
+                } else if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
+                    // 在地球仪模式或预览模式下的下半区地球仪拖拽旋转
                     if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
                         touch_state.is_dragging = true;
                     }
@@ -399,38 +474,47 @@ void loop() {
         } else {
             if (touch_state.was_pressed) {
                 uint32_t press_duration = now - touch_state.touch_start_ms;
-            float total_dx = (float)(touch_state.last_x - touch_state.start_x);
-            float total_dy = (float)(touch_state.last_y - touch_state.start_y);
-            float move_dist_sq = total_dx * total_dx + total_dy * total_dy;
+                float total_dx = (float)(touch_state.last_x - touch_state.start_x);
+                float total_dy = (float)(touch_state.last_y - touch_state.start_y);
+                float move_dist_sq = total_dx * total_dx + total_dy * total_dy;
 
-            if (current_view_state == VIEW_GLOBE) {
-                // 1. 地球居中模式：点击 Marker
-                if (press_duration < 350 && move_dist_sq < 64.0f) {
-                    int hit = place_mgr.hitTest(touch_state.start_x, touch_state.start_y, globe, 28.0f);
-                    uint32_t time_since_last_tap = now - touch_state.last_tap_ms;
-                    touch_state.last_tap_ms = now;
+                bool was_zooming = touch_state.is_edge_zooming || touch_state.is_double_tap_drag;
+                touch_state.is_edge_zooming = false;
+                touch_state.is_double_tap_drag = false;
 
-                    if (hit >= 0) {
-                        if (hit == place_mgr.getSelectedIndex() || (time_since_last_tap < 450 && hit == touch_state.last_hit_idx)) {
-                            // 第二次点击该地点：地球仪向下方避让，进入 VIEW_PLACE_PREVIEW！
-                            transition_to_view(VIEW_PLACE_PREVIEW);
-                        } else {
-                            place_mgr.setSelectedIndex(hit);
-                            touch_state.last_hit_idx = hit;
-                            const PlaceLocation* p = place_mgr.getSelectedPlace();
-                            if (p) {
-                                Serial.printf("[Touch Hit] Focus: %s (%s)\n", p->name, p->country);
+                if (!was_zooming) {
+                    if (current_view_state == VIEW_GLOBE) {
+                        // 1. 地球居中模式：点击 Marker
+                        if (press_duration < 350 && move_dist_sq < 64.0f) {
+                            int hit = place_mgr.hitTest(touch_state.start_x, touch_state.start_y, globe, 28.0f);
+                            uint32_t time_since_last_tap = now - touch_state.last_tap_ms;
+                            touch_state.last_tap_ms = now;
+
+                            if (hit >= 0) {
+                                if (hit == place_mgr.getSelectedIndex() || (time_since_last_tap < 450 && hit == touch_state.last_hit_idx)) {
+                                    // 第二次点击该地点：地球仪向下方避让，进入 VIEW_PLACE_PREVIEW！
+                                    transition_to_view(VIEW_PLACE_PREVIEW);
+                                } else {
+                                    place_mgr.setSelectedIndex(hit);
+                                    touch_state.last_hit_idx = hit;
+                                    const PlaceLocation* p = place_mgr.getSelectedPlace();
+                                    if (p) {
+                                        Serial.printf("[Touch Hit] Focus: %s (%s)\n", p->name, p->country);
+                                    }
+                                }
+                            } else if (touch_state.start_y >= 390 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
+                                // 点击底部卡片亦可进入预览模式
+                                transition_to_view(VIEW_PLACE_PREVIEW);
+                            } else if (time_since_last_tap < 380) {
+                                // 双击地球仪空白处：快速在 1.0x 全景与 1.5x 特写之间平滑切换！
+                                float current_z = globe.getZoom();
+                                float target_z = (current_z > 1.25f) ? 1.0f : 1.5f;
+                                globe.setZoom(target_z);
+                                touch_state.last_zoom_ui_ms = now;
+                                Serial.printf("[Double Tap Blank] Quick Zoom toggle -> %.2fx\n", target_z);
                             }
                         }
-                    } else if (touch_state.start_y >= 390 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
-                        // 点击底部卡片亦可进入预览模式
-                        transition_to_view(VIEW_PLACE_PREVIEW);
-                    } else if (time_since_last_tap < 380) {
-                        // 双击进入预览模式
-                        transition_to_view(VIEW_PLACE_PREVIEW);
-                    }
-                }
-            } else if (current_view_state == VIEW_PLACE_PREVIEW) {
+                    } else if (current_view_state == VIEW_PLACE_PREVIEW) {
                 // 2. 预览模式：点击中等窗口放大播放，或滑动切地点，或点击地球返回
                 if (fabsf(total_dx) > 40.0f && fabsf(total_dx) > fabsf(total_dy) * 1.4f) {
                     // 水平滑动切换地点 (Swipe Left: 下一处, Swipe Right: 上一处)
@@ -461,6 +545,7 @@ void loop() {
                 if (press_duration < 350 && move_dist_sq < 64.0f) {
                     transition_to_view(VIEW_PLACE_PREVIEW);
                 }
+            }
             }
 
             touch_state.was_pressed = false;
@@ -507,6 +592,9 @@ void loop() {
         } else {
             camera_drawer.renderEdgeHandle(M5.Display);
         }
+
+        // 渲染屏幕右侧边缘滑轨缩放反馈与把柄 (适配 CST816S 单点触控硬件)
+        draw_zoom_edge_ui(M5.Display, now);
 
         M5.Display.endWrite();
 
