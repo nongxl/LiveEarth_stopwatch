@@ -4,8 +4,8 @@
 #include "place_marker.h"
 
 // -------------------------------------------------------------
-// LiveEarth PlaceDetailView (Phase 5 - Step 2)
-// Medium Video Preview Window with Top, Left, Right Information HUD
+// LiveEarth PlaceDetailView (Phase 5 - Step 2 Enhanced)
+// Large-Text Readability & Dynamic Globe Avoidance Layout
 // -------------------------------------------------------------
 
 class PlaceDetailView {
@@ -15,21 +15,21 @@ public:
     void init();
     void update(uint32_t now_ms);
 
-    // 渲染中等视频预览窗口及上、左、右多维环绕信息
+    // 渲染中等视频预览窗口及大字号易读多维信息
     void render(M5GFX& display, const PlaceLocation* place);
 
     void requestRedraw() { needs_full_redraw = true; }
 
-    // 中等视频预览窗几何常量 (16:9)
-    static constexpr int16_t PREVIEW_W = 224;
-    static constexpr int16_t PREVIEW_H = 126;
-    static constexpr int16_t PREVIEW_X = 121; // (466 - 224) / 2
-    static constexpr int16_t PREVIEW_Y = 135;
+    // 中等视频预览窗几何常量 (16:9 比例，宽 240，高 135，大触摸热区)
+    static constexpr int16_t PREVIEW_W = 240;
+    static constexpr int16_t PREVIEW_H = 135;
+    static constexpr int16_t PREVIEW_X = 113; // (466 - 240) / 2
+    static constexpr int16_t PREVIEW_Y = 122;
 
-    // 点击命中检测：是否点击了中央中等视频窗口
+    // 点击命中检测：扩大触控判定裕度，极易点击操作
     static bool isInsidePreviewWindow(int16_t tx, int16_t ty) {
-        return (tx >= PREVIEW_X - 6 && tx <= PREVIEW_X + PREVIEW_W + 6 &&
-                ty >= PREVIEW_Y - 6 && ty <= PREVIEW_Y + PREVIEW_H + 6);
+        return (tx >= PREVIEW_X - 12 && tx <= PREVIEW_X + PREVIEW_W + 12 &&
+                ty >= PREVIEW_Y - 12 && ty <= PREVIEW_Y + PREVIEW_H + 12);
     }
 
 private:

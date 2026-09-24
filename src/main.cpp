@@ -216,7 +216,7 @@ static void transition_to_view(AppViewState new_state) {
     if (current_view_state == new_state) return;
 
     if (new_state == VIEW_GLOBE) {
-        // 返回地球仪居中模式：恢复地球仪居中半径与中心
+        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 160, 160
         globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, GLOBE_DEFAULT_RADIUS);
         current_view_state = VIEW_GLOBE;
         M5.Display.fillScreen(COLOR_BG);
@@ -224,17 +224,17 @@ static void transition_to_view(AppViewState new_state) {
         perf.last_hud_update = 0;
         Serial.println("[State] -> VIEW_GLOBE (Centered 3D Earth)");
     } else if (new_state == VIEW_PLACE_PREVIEW) {
-        // 进入预览模式：地球仪对准该地点并向下避让微缩
+        // 进入预览模式：以所选地点为锚点大幅放大 (R: 210)，重心下移避让以给上部留出充足空间
         const PlaceLocation* p = place_mgr.getSelectedPlace();
         if (p) {
             globe.focusLatLng(p->latitude, p->longitude);
         }
-        // 下移避让模式下，地球基准半径设为 130，内部中心仍为 160, 160
-        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, 130.0f);
+        // 地球仪基准半径放大至 210px，内部中心下偏至 (160, 210)
+        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, 210, 210.0f);
         current_view_state = VIEW_PLACE_PREVIEW;
         M5.Display.fillScreen(COLOR_BG);
         preview_view.requestRedraw();
-        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Globe Avoidance Downward + Center Preview Window)");
+        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Globe Avoidance Downward & Enlarged + Clear Large-Text UI)");
     } else if (new_state == VIEW_VIDEO_FULL) {
         // 进入对角线466黄金内接放大播放模式
         current_view_state = VIEW_VIDEO_FULL;
@@ -433,11 +433,12 @@ void loop() {
         // 1. 渲染上、左、右多维信息与中央中等视频窗口
         preview_view.render(M5.Display, place_mgr.getSelectedPlace());
 
-        // 2. 渲染下方避让的 3D 地球仪 (推送到 Y: 226，北半球穹顶隆起在 Y: 256，与预览窗底部咬合)
+        // 2. 渲染下方大幅避让并放大的 3D 地球仪 (推送到 Y: 280，球心在 Y: 490，大半径 R: 210)
+        // 目标地点作为锚点放大居中，地平线大弧形在 Y: 280 隆起，为上部留出充足空间
         canvas.fillScreen(COLOR_BG);
         globe.render(canvas);
         place_mgr.renderMarkers(canvas, globe);
-        canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, 226);
+        canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, 280);
 
         M5.Display.endWrite();
 
