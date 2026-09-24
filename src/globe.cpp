@@ -144,8 +144,8 @@ void GlobeEngine::handleDrag(float delta_x, float delta_y) {
 
 void GlobeEngine::handlePinch(float zoom_delta) {
     current_zoom += zoom_delta;
-    if (current_zoom < 0.65f) current_zoom = 0.65f;
-    if (current_zoom > 2.20f) current_zoom = 2.20f;
+    if (current_zoom < GLOBE_ZOOM_MIN) current_zoom = GLOBE_ZOOM_MIN;
+    if (current_zoom > GLOBE_ZOOM_MAX) current_zoom = GLOBE_ZOOM_MAX;
 }
 
 void GlobeEngine::resetOrientation(float target_lat_deg, float target_lon_deg) {

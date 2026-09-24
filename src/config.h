@@ -21,6 +21,8 @@
 #define GLOBE_CANVAS_OFFSET_X 0
 #define GLOBE_CANVAS_OFFSET_Y 73
 #define GLOBE_DEFAULT_RADIUS 152
+#define GLOBE_ZOOM_MIN       0.60f
+#define GLOBE_ZOOM_MAX       4.00f   // 支持超高放大倍率，密集摄像头区域轻松点选
 
 // Color Palette (Dark Mode Aesthetic)
 #define COLOR_BG             0x0821   // 深邃星空黑 (#080811)

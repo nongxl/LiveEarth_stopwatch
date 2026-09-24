@@ -176,7 +176,7 @@ static void update_dynamic_hud() {
 static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
     if (current_view_state != VIEW_GLOBE) return;
 
-    bool is_active = touch_state.is_edge_zooming || touch_state.is_double_tap_drag || (now - touch_state.last_zoom_ui_ms < 1400);
+    bool is_active = touch_state.is_edge_zooming || touch_state.is_double_tap_drag || (now - touch_state.last_zoom_ui_ms < 1200);
 
     if (!is_active) {
         // 静止态：右侧边缘微光拉手把柄 (X: 452~466, Y: 213~253)，与左边缘抽屉拉手对称呼应
@@ -194,33 +194,44 @@ static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
         return;
     }
 
-    // 激活态：右侧 60 度弧形标尺 (330° ~ 30°)
-    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 222, 330, 30, 0x4EEB);
-    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 227, 221, 330, 30, 0x1B55);
+    // 激活态：无级动态光轨 (底轨 330° ~ 30°，跨度整整 60 度)
+    // 1. 底轨 (深邃科技背景)
+    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 222, 330, 30, 0x1B55);
 
+    // 两端极限刻度线：顶端 (-30° 即 330°) 与 底端 (+30°)
+    int16_t t_kx1 = SCREEN_CENTER_X + (int16_t)(cosf(-30.0f * DEG_TO_RAD) * 220.0f);
+    int16_t t_ky1 = SCREEN_CENTER_Y + (int16_t)(sinf(-30.0f * DEG_TO_RAD) * 220.0f);
+    int16_t t_kx2 = SCREEN_CENTER_X + (int16_t)(cosf(-30.0f * DEG_TO_RAD) * 228.0f);
+    int16_t t_ky2 = SCREEN_CENTER_Y + (int16_t)(sinf(-30.0f * DEG_TO_RAD) * 228.0f);
+    display.drawLine(t_kx1, t_ky1, t_kx2, t_ky2, 0x7BEF);
+
+    int16_t b_kx1 = SCREEN_CENTER_X + (int16_t)(cosf(30.0f * DEG_TO_RAD) * 220.0f);
+    int16_t b_ky1 = SCREEN_CENTER_Y + (int16_t)(sinf(30.0f * DEG_TO_RAD) * 220.0f);
+    int16_t b_kx2 = SCREEN_CENTER_X + (int16_t)(cosf(30.0f * DEG_TO_RAD) * 228.0f);
+    int16_t b_ky2 = SCREEN_CENTER_Y + (int16_t)(sinf(30.0f * DEG_TO_RAD) * 228.0f);
+    display.drawLine(b_kx1, b_ky1, b_kx2, b_ky2, 0x7BEF);
+
+    // 2. 映射当前 zoom (GLOBE_ZOOM_MIN ~ GLOBE_ZOOM_MAX) 到精确角度
     float cur_z = globe.getZoom();
-    // 0.65x ~ 2.2x 归一化映射
-    float norm = (cur_z - 0.65f) / (2.2f - 0.65f);
+    float norm = (cur_z - GLOBE_ZOOM_MIN) / (GLOBE_ZOOM_MAX - GLOBE_ZOOM_MIN);
     if (norm < 0.0f) norm = 0.0f;
     if (norm > 1.0f) norm = 1.0f;
-    // 角度：下方为缩小 (+25°)，上方为放大 (-25°)
-    float angle_deg = 25.0f - norm * 50.0f;
-    float rad = angle_deg * DEG_TO_RAD;
 
+    // 角度精确线性映射：norm=0 时 angle=+30°(底端)；norm=1 时 angle=-30°(顶端尽头)
+    float angle_deg = 30.0f - norm * 60.0f;
+
+    // 3. 动态发光填充弧线 (从底端 30° 向上饱满填充至当前 angle_deg)
+    int32_t start_a = (int32_t)roundf(angle_deg < 0 ? angle_deg + 360.0f : angle_deg);
+    if (start_a >= 360) start_a -= 360;
+    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 222, start_a, 30, COLOR_ACCENT_CYAN);
+
+    // 4. 当前游标星核 (到达极限时精确停靠在端点小刻度线上)
+    float rad = angle_deg * DEG_TO_RAD;
     int16_t kx = SCREEN_CENTER_X + (int16_t)(cosf(rad) * 224.0f);
     int16_t ky = SCREEN_CENTER_Y + (int16_t)(sinf(rad) * 224.0f);
-    display.fillCircle(kx, ky, 5, 0x07E0);
-    display.drawCircle(kx, ky, 7, 0xFFFF);
 
-    // 浮动发光胶囊倍率徽章 (如 "1.4x")
-    char z_buf[16];
-    snprintf(z_buf, sizeof(z_buf), "%.1fx", cur_z);
-    display.fillRoundRect(SCREEN_WIDTH - 68, 221, 50, 24, 4, 0x0842);
-    display.drawRoundRect(SCREEN_WIDTH - 68, 221, 50, 24, 4, 0x4EEB);
-    display.setTextDatum(middle_center);
-    display.setTextSize(1);
-    display.setTextColor(0xFFFF, 0x0842);
-    display.drawString(z_buf, SCREEN_WIDTH - 43, 233);
+    display.fillCircle(kx, ky, 5, COLOR_ACCENT_CYAN);
+    display.fillCircle(kx, ky, 2, 0xFFFF);
 }
 
 // -------------------------------------------------------------
@@ -453,9 +464,9 @@ void loop() {
                 float total_dy = (float)(cur_y - touch_state.start_y);
 
                 if (touch_state.is_edge_zooming || touch_state.is_double_tap_drag) {
-                    // 垂直滑动连续无级缩放地球仪 (向上推放大，向下拉缩小)
+                    // 垂直滑动连续无级缩放地球仪 (向上推放大，向下拉缩小，匹配 4.0x 超高无级范围)
                     if (fabsf(dy) > 0.6f) {
-                        globe.handlePinch(-dy * 0.0075f);
+                        globe.handlePinch(-dy * 0.0135f);
                         touch_state.last_zoom_ui_ms = now;
                     }
                 } else if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
@@ -506,9 +517,9 @@ void loop() {
                                 // 点击底部卡片亦可进入预览模式
                                 transition_to_view(VIEW_PLACE_PREVIEW);
                             } else if (time_since_last_tap < 380) {
-                                // 双击地球仪空白处：快速在 1.0x 全景与 1.5x 特写之间平滑切换！
+                                // 双击地球仪空白处：快速在 1.0x 全景与 2.5x 超清大洲特写之间平滑切换！
                                 float current_z = globe.getZoom();
-                                float target_z = (current_z > 1.25f) ? 1.0f : 1.5f;
+                                float target_z = (current_z > 1.6f) ? 1.0f : 2.5f;
                                 globe.setZoom(target_z);
                                 touch_state.last_zoom_ui_ms = now;
                                 Serial.printf("[Double Tap Blank] Quick Zoom toggle -> %.2fx\n", target_z);

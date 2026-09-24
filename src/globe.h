@@ -39,7 +39,7 @@ public:
 
     float getRadius() const { return base_radius * current_zoom; }
     float getZoom() const { return current_zoom; }
-    void setZoom(float z) { current_zoom = (z < 0.65f) ? 0.65f : ((z > 2.2f) ? 2.2f : z); }
+    void setZoom(float z) { current_zoom = (z < GLOBE_ZOOM_MIN) ? GLOBE_ZOOM_MIN : ((z > GLOBE_ZOOM_MAX) ? GLOBE_ZOOM_MAX : z); }
     float getYaw() const { return current_yaw; }
     float getPitch() const { return current_pitch; }
     float getSubsolarLat() const { return sun_pos.subsolar_lat; }
