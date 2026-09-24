@@ -13,10 +13,17 @@ struct PlaceLocation {
     const char* name;
     const char* local_name;
     const char* country;
+    const char* region;
     float latitude;
     float longitude;
     const char* category;
     uint16_t theme_color;
+    const char* description;
+    const char* highlight;
+    const char* cam_name;
+    const char* cam_source;
+    int cam_count;
+    bool is_online;
 };
 
 class PlaceMarkerManager {

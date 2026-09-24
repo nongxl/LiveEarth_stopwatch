@@ -6,14 +6,22 @@
 #include "globe.h"
 #include "sun_calc.h"
 #include "place_marker.h"
+#include "place_detail_view.h"
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
 // -------------------------------------------------------------
+enum AppViewState {
+    VIEW_GLOBE = 0,
+    VIEW_PLACE_DETAIL = 1
+};
+
+static AppViewState current_view_state = VIEW_GLOBE;
 static M5Canvas canvas(&M5.Display);
 static GlobeEngine globe;
 static SunCalculator sun_calc;
 static PlaceMarkerManager place_mgr;
+static PlaceDetailView detail_view;
 
 struct TouchGestureState {
     int16_t last_x = -1;
@@ -23,6 +31,8 @@ struct TouchGestureState {
     bool is_dragging = false;
     bool was_pressed = false;
     uint32_t touch_start_ms = 0;
+    uint32_t last_tap_ms = 0;
+    int last_hit_idx = -1;
 } touch_state;
 
 struct PerformanceMetrics {
@@ -160,8 +170,9 @@ void setup() {
     cfg.internal_rtc = true;
     M5.begin(cfg);
 
-    // 初始化地理地点管理器
+    // 初始化地理地点管理器与详情视图
     place_mgr.init();
+    detail_view.init();
 
     print_system_diagnostics();
 
@@ -205,7 +216,7 @@ void loop() {
     if (dt_sec > 0.1f) dt_sec = 0.1f;
     perf.last_frame_time = now;
 
-    // 1. 每 2 秒微调时间并更新太阳直射点
+    // 1. 每 2 秒微调时间并更新太阳直射点 (后台持续解算)
     if (now - perf.last_sun_update >= 2000) {
         perf.last_sun_update = now;
         simulated_utc_time += 2;
@@ -213,20 +224,32 @@ void loop() {
         globe.setSunPosition(cur_sun.subsolar_lat, cur_sun.subsolar_lon);
     }
 
-    // 2. 物理按键处理：短按切换下一个地点，长按复位地球视角
-    if (M5.BtnA.wasClicked()) {
-        btn_click_count++;
-        place_mgr.nextPlace();
-        const PlaceLocation* p = place_mgr.getSelectedPlace();
-        if (p) {
-            Serial.printf("[BtnA Click] Switched to place: %s (%s)\n", p->name, p->country);
+    // 2. 物理按键处理 (根据状态机分流)
+    if (current_view_state == VIEW_PLACE_DETAIL) {
+        if (M5.BtnA.wasClicked()) {
+            // 在地点详情模式下，按物理键直接返回 3D 地球仪探索视图
+            current_view_state = VIEW_GLOBE;
+            M5.Display.fillScreen(COLOR_BG);
+            draw_static_hud_markers();
+            perf.last_hud_update = 0;
+            Serial.println("[BtnA] Exiting Place View -> Back to Globe.");
         }
-    } else if (M5.BtnA.wasHold()) {
-        Serial.println("[BtnA Hold] Resetting globe orientation to default.");
-        globe.resetOrientation();
+    } else {
+        // VIEW_GLOBE 模式
+        if (M5.BtnA.wasClicked()) {
+            btn_click_count++;
+            place_mgr.nextPlace();
+            const PlaceLocation* p = place_mgr.getSelectedPlace();
+            if (p) {
+                Serial.printf("[BtnA Click] Switched to place: %s (%s)\n", p->name, p->country);
+            }
+        } else if (M5.BtnA.wasHold()) {
+            Serial.println("[BtnA Hold] Resetting globe orientation to default.");
+            globe.resetOrientation();
+        }
     }
 
-    // 3. 触控手势处理 (拖拽旋转地球 + 点击轻触命中发光 Marker)
+    // 3. 触控手势处理 (根据状态机分流)
     auto detail = M5.Touch.getDetail();
     if (detail.isPressed()) {
         int16_t cur_x = detail.x;
@@ -244,16 +267,17 @@ void loop() {
             float dx = (float)(cur_x - touch_state.last_x);
             float dy = (float)(cur_y - touch_state.last_y);
 
-            // 位移累计判断是否进入持续拖拽
             float total_dx = (float)(cur_x - touch_state.start_x);
             float total_dy = (float)(cur_y - touch_state.start_y);
-            if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
-                touch_state.is_dragging = true;
-            }
 
-            if (touch_state.is_dragging) {
-                // 驱动 3D 地球旋转
-                globe.handleDrag(dx, dy);
+            if (current_view_state == VIEW_GLOBE) {
+                // 地球仪拖拽判定
+                if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
+                    touch_state.is_dragging = true;
+                }
+                if (touch_state.is_dragging) {
+                    globe.handleDrag(dx, dy);
+                }
             }
 
             touch_state.last_x = cur_x;
@@ -261,21 +285,63 @@ void loop() {
         }
     } else {
         if (touch_state.was_pressed) {
-            // 手指抬起，若为短促且位移轻微的点击，判定为 Tap 触控命中检测
             uint32_t press_duration = now - touch_state.touch_start_ms;
             float total_dx = (float)(touch_state.last_x - touch_state.start_x);
             float total_dy = (float)(touch_state.last_y - touch_state.start_y);
             float move_dist_sq = total_dx * total_dx + total_dy * total_dy;
 
-            if (press_duration < 350 && move_dist_sq < 64.0f) {
-                int hit = place_mgr.hitTest(touch_state.start_x, touch_state.start_y, globe, 26.0f);
-                if (hit >= 0) {
-                    place_mgr.setSelectedIndex(hit);
-                    const PlaceLocation* hit_place = place_mgr.getSelectedPlace();
-                    if (hit_place) {
-                        Serial.printf("[Touch Hit] Selected: %s, %s (Lat: %.2f, Lon: %.2f)\n",
-                                      hit_place->name, hit_place->country,
-                                      hit_place->latitude, hit_place->longitude);
+            if (current_view_state == VIEW_GLOBE) {
+                // 3D 地球仪模式下的点击与转场检测
+                if (press_duration < 350 && move_dist_sq < 64.0f) {
+                    int hit = place_mgr.hitTest(touch_state.start_x, touch_state.start_y, globe, 28.0f);
+                    uint32_t time_since_last_tap = now - touch_state.last_tap_ms;
+                    touch_state.last_tap_ms = now;
+
+                    if (hit >= 0) {
+                        if (hit == place_mgr.getSelectedIndex() || (time_since_last_tap < 450 && hit == touch_state.last_hit_idx)) {
+                            // 再次点击已选中的 Marker 或快速双击：转场进入 Place View！
+                            current_view_state = VIEW_PLACE_DETAIL;
+                            detail_view.requestRedraw();
+                            Serial.printf("[Transition] Marker Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                        } else {
+                            place_mgr.setSelectedIndex(hit);
+                            touch_state.last_hit_idx = hit;
+                            const PlaceLocation* p = place_mgr.getSelectedPlace();
+                            if (p) {
+                                Serial.printf("[Touch Hit] Focus: %s (%s)\n", p->name, p->country);
+                            }
+                        }
+                    } else if (touch_state.start_y >= 390 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
+                        // 点击底部地点卡片进入详情视图
+                        current_view_state = VIEW_PLACE_DETAIL;
+                        detail_view.requestRedraw();
+                        Serial.printf("[Transition] Bottom HUD Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                    } else if (time_since_last_tap < 380) {
+                        // 屏幕任意位置双击进入当前选中地点详情
+                        current_view_state = VIEW_PLACE_DETAIL;
+                        detail_view.requestRedraw();
+                        Serial.printf("[Transition] Double Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                    }
+                }
+            } else if (current_view_state == VIEW_PLACE_DETAIL) {
+                // 地点详情视图模式下的手势检测
+                if (fabsf(total_dx) > 40.0f && fabsf(total_dx) > fabsf(total_dy) * 1.4f) {
+                    // 水平滑动切换地点 (Swipe Left: 下一处, Swipe Right: 上一处)
+                    if (total_dx < 0) {
+                        place_mgr.nextPlace();
+                    } else {
+                        place_mgr.prevPlace();
+                    }
+                    detail_view.requestRedraw();
+                    Serial.printf("[Detail Swipe] Now at: %s\n", place_mgr.getSelectedPlace()->name);
+                } else if (press_duration < 350 && move_dist_sq < 64.0f) {
+                    // 点击底部退出区域或顶部返回
+                    if (touch_state.start_y >= 380 || touch_state.start_y <= 60) {
+                        current_view_state = VIEW_GLOBE;
+                        M5.Display.fillScreen(COLOR_BG);
+                        draw_static_hud_markers();
+                        perf.last_hud_update = 0;
+                        Serial.println("[Detail Tap] Returning to Globe.");
                     }
                 }
             }
@@ -287,39 +353,41 @@ void loop() {
         }
     }
 
-    // 4. 物理惯性与地点动画更新
-    globe.update(dt_sec);
-    place_mgr.update(now);
+    // 4. 视图分支渲染管线
+    if (current_view_state == VIEW_GLOBE) {
+        // 4.1 物理惯性与地点动画更新
+        globe.update(dt_sec);
+        place_mgr.update(now);
 
-    // 5. 统计帧率与内存
-    perf.frame_count++;
-    if (now - perf.last_fps_update >= 500) {
-        perf.current_fps = (perf.frame_count * 1000.0f) / (float)(now - perf.last_fps_update);
-        perf.frame_count = 0;
-        perf.last_fps_update = now;
-        perf.free_heap_sram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-        perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+        // 4.2 统计帧率与内存
+        perf.frame_count++;
+        if (now - perf.last_fps_update >= 500) {
+            perf.current_fps = (perf.frame_count * 1000.0f) / (float)(now - perf.last_fps_update);
+            perf.frame_count = 0;
+            perf.last_fps_update = now;
+            perf.free_heap_sram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+        }
+
+        // 4.3 高速渲染管线 (锁定总线事务传输)
+        M5.Display.startWrite();
+        canvas.fillScreen(COLOR_BG);
+        globe.render(canvas);
+        place_mgr.renderMarkers(canvas, globe);
+        canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
+
+        if (now - perf.last_hud_update >= 80) {
+            perf.last_hud_update = now;
+            update_dynamic_hud();
+        }
+        M5.Display.endWrite();
+    } else if (current_view_state == VIEW_PLACE_DETAIL) {
+        // 地点详情视图 (Place View) 高速低功耗渲染
+        detail_view.update(now);
+
+        M5.Display.startWrite();
+        detail_view.render(M5.Display, place_mgr.getSelectedPlace());
+        M5.Display.endWrite();
     }
-
-    // 6. 高速渲染管线 (锁定总线事务传输)
-    M5.Display.startWrite();
-
-    // 6.1 在 320x320 视口画布中渲染 3D 地球底图与 0度经纬锚点
-    canvas.fillScreen(COLOR_BG);
-    globe.render(canvas);
-
-    // 6.2 渲染 Phase 3 & Phase 4: 地理发光 Markers 呼吸动效与瞄准框
-    place_mgr.renderMarkers(canvas, globe);
-
-    // 6.3 高速推送到屏幕中央 (73, 73)
-    canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
-
-    // 6.4 定时刷新动态 HUD 文字 (每 80ms 刷新一次，零拖慢主渲染管线)
-    if (now - perf.last_hud_update >= 80) {
-        perf.last_hud_update = now;
-        update_dynamic_hud();
-    }
-
-    M5.Display.endWrite();
 }
 

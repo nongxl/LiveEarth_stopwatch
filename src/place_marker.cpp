@@ -13,110 +13,187 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Mount Fuji",
         "富士山",
         "Japan",
+        "Yamanashi / Shizuoka",
         35.3606f,
         138.7274f,
         "mountain",
-        0x47E0 // 翡翠冰雪绿
+        0x47E0, // 翡翠冰雪绿
+        "Japan's sacred stratovolcano standing at 3,776m. World Heritage site iconic for snow symmetry.",
+        "Lake Kawaguchiko scenic reflection & crater peak",
+        "Kawaguchiko Official Cam",
+        "Fujigoko TV Consortium",
+        1,
+        true
     },
     {
         "us-kilauea-volcano",
         "Kilauea Volcano",
         "基拉韦厄火山",
-        "USA Hawaii",
+        "United States",
+        "Hawaii",
         19.4069f,
         -155.2833f,
         "volcano",
-        0xFA20 // 炽热熔岩橙红
+        0xFA20, // 炽热熔岩橙红
+        "Hyperactive shield volcano in Hawaii Volcanoes National Park with glowing caldera lava lake.",
+        "Halema'uma'u active vent & USGS scientific monitoring",
+        "Halema'uma'u Crater Live",
+        "USGS Volcano Observatory",
+        1,
+        true
     },
     {
         "us-times-square",
         "Times Square",
         "时代广场",
-        "USA NYC",
+        "United States",
+        "New York",
         40.7580f,
         -73.9855f,
         "city",
-        0xF81F // 繁华霓虹洋红
+        0xF81F, // 繁华霓虹洋红
+        "The Crossroads of the World in Midtown Manhattan, illuminated 24/7 by gigantic digital billboards.",
+        "Broadway theater district & iconic pedestrian plazas",
+        "Broadway 46th St View",
+        "EarthCam Times Square",
+        1,
+        true
     },
     {
         "cn-shanghai-bund",
         "The Bund",
         "上海外滩",
         "China",
+        "Shanghai",
         31.2397f,
         121.4900f,
         "city",
-        0x07FF // 东方明珠科技青
+        0x07FF, // 东方明珠科技青
+        "Legendary waterfront on Huangpu River showcasing historical colonial architecture and futuristic skyline.",
+        "Oriental Pearl Tower & Lujiazui skyscraper cluster",
+        "Huangpu River Skyline",
+        "Shanghai Municipal Tourism",
+        1,
+        true
     },
     {
         "fr-paris-eiffel",
         "Eiffel Tower",
         "埃菲尔铁塔",
         "France",
+        "Paris, Ile-de-France",
         48.8584f,
         2.2945f,
         "landmark",
-        0xFFE0 // 浪漫香槟金
+        0xFFE0, // 浪漫香槟金
+        "Wrought-iron lattice tower on the Champ de Mars, the global symbol of Paris standing 330 meters tall.",
+        "Seine River panoramic overlook & evening golden beacon",
+        "Trocadero Panoramic Cam",
+        "Paris Tourism Authority",
+        1,
+        true
     },
     {
         "uk-greenwich",
         "Greenwich Obs",
         "格林威治天文台",
-        "UK London",
+        "United Kingdom",
+        "London",
         51.4769f,
         -0.0005f,
         "observatory",
-        0xFE60 // 0度经线皇家琥珀
+        0xFE60, // 0度经线皇家琥珀
+        "Historic astronomical observatory and home of the Prime Meridian of the World (0 longitude).",
+        "Zero Meridian reference laser & GMT historic chronometers",
+        "Meridian Line Courtyard",
+        "Royal Museums Greenwich",
+        1,
+        true
     },
     {
         "au-sydney-opera",
         "Sydney Opera",
         "悉尼歌剧院",
         "Australia",
+        "New South Wales",
         -33.8568f,
         151.2153f,
         "landmark",
-        0x3E7F // 南太平洋明蓝
+        0x3E7F, // 南太平洋明蓝
+        "Multi-venue performing arts centre with iconic sail-like roof structure on Sydney Harbour.",
+        "Harbour Bridge vista & UNESCO architectural wonder",
+        "Harbour Esplanade Live",
+        "Sydney Port Authority",
+        1,
+        true
     },
     {
         "eg-giza-pyramids",
         "Pyramids of Giza",
         "吉萨金字塔",
         "Egypt",
+        "Giza / Cairo",
         29.9792f,
         31.1342f,
         "landmark",
-        0xFDC0 // 撒哈拉金沙
+        0xFDC0, // 撒哈拉金沙
+        "Sole remaining wonder of the ancient world, erected over 4,500 years ago on the Giza plateau.",
+        "Great Pyramid of Khufu & enigmatic Sphinx monument",
+        "Giza Plateau Heritage View",
+        "Ministry of Tourism Egypt",
+        1,
+        true
     },
     {
         "br-rio-christ",
         "Christ Redeemer",
         "里约基督像",
         "Brazil",
+        "Rio de Janeiro",
         -22.9519f,
         -43.2105f,
         "landmark",
-        0x7FE0 // 亚马逊雨林翡翠
+        0x7FE0, // 亚马逊雨林翡翠
+        "Colossal Art Deco statue of Jesus atop Corcovado mountain overlooking Guanabara Bay and beaches.",
+        "Sugarloaf Mountain vista & Copacabana coastal panorama",
+        "Corcovado Summit Cam",
+        "Rio Destination Tourism",
+        1,
+        true
     },
     {
         "is-reykjavik",
         "Reykjavik",
         "雷克雅未克",
         "Iceland",
+        "Capital Region",
         64.1466f,
         -21.9426f,
         "landmark",
-        0x57FE // 北极极光蓝
+        0x57FE, // 北极极光蓝
+        "The world's northernmost sovereign capital, powered by geothermal energy beneath subpolar skies.",
+        "Hallgrimskirkja spire & seasonal Aurora Borealis skies",
+        "Reykjavik Old Harbour Live",
+        "Icelandic Met Office",
+        1,
+        true
     },
     {
         "za-cape-hope",
         "Cape of Good Hope",
         "好望角",
         "South Africa",
+        "Western Cape",
         -34.3568f,
         18.4740f,
         "landmark",
-        0x257F // 两洋交汇深海蓝
+        0x257F, // 两洋交汇深海蓝
+        "Legendary rocky promontory at the southern tip of the Cape Peninsula where Atlantic winds collide.",
+        "Historic lighthouse clifftop & Table Mountain National Park",
+        "Cape Point Clifftop View",
+        "SANParks Official Tourism",
+        1,
+        true
     }
 };
 
