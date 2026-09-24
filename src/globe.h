@@ -33,7 +33,9 @@ public:
 
     // 动态调整视口中心与基准半径 (用于下移避让)
     void setCenterAndRadius(int16_t center_x, int16_t center_y, float radius);
-    void focusLatLng(float lat_deg, float lon_deg);
+    // 平滑飞行飞掠动画接口 (自然平滑旋转并聚焦)
+    void flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode = false, uint32_t duration_ms = 650);
+    bool isAnimating() const { return anim_active; }
 
     float getRadius() const { return base_radius * current_zoom; }
     float getYaw() const { return current_yaw; }
@@ -52,6 +54,15 @@ private:
 
     float vel_pitch;     // 惯性俯仰角速度
     float vel_yaw;       // 惯性自转角速度
+
+    // 平滑过渡飞行动画状态
+    bool anim_active;
+    uint32_t anim_start_ms;
+    uint32_t anim_duration_ms;
+    float anim_start_pitch, anim_target_pitch;
+    float anim_start_yaw, anim_target_yaw;
+    float anim_start_radius, anim_target_radius;
+    int16_t anim_start_cy, anim_target_cy;
 
     SunPosition sun_pos;
     bool has_sun_data;

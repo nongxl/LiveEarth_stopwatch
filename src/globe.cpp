@@ -21,6 +21,11 @@ GlobeEngine::GlobeEngine()
       base_radius(GLOBE_DEFAULT_RADIUS), current_zoom(1.0f),
       current_pitch(28.0f * DEG_TO_RAD), current_yaw(115.0f * DEG_TO_RAD),
       vel_pitch(0.0f), vel_yaw(0.001f),
+      anim_active(false), anim_start_ms(0), anim_duration_ms(0),
+      anim_start_pitch(0), anim_target_pitch(0),
+      anim_start_yaw(0), anim_target_yaw(0),
+      anim_start_radius(GLOBE_DEFAULT_RADIUS), anim_target_radius(GLOBE_DEFAULT_RADIUS),
+      anim_start_cy(GLOBE_CANVAS_HEIGHT / 2), anim_target_cy(GLOBE_CANVAS_HEIGHT / 2),
       has_sun_data(true)
 {
     // 默认初始太阳位置（春分点附近直射赤道偏南/经度0）
@@ -33,20 +38,71 @@ void GlobeEngine::init(int16_t center_x, int16_t center_y, float radius) {
     cx = center_x;
     cy = center_y;
     base_radius = radius;
+    anim_active = false;
 }
 
 void GlobeEngine::setCenterAndRadius(int16_t center_x, int16_t center_y, float radius) {
     cx = center_x;
     cy = center_y;
     base_radius = radius;
+    anim_active = false;
 }
 
-void GlobeEngine::focusLatLng(float lat_deg, float lon_deg) {
-    // 将指定经纬度平滑对准视野正中心
-    current_pitch = lat_deg * DEG_TO_RAD;
-    current_yaw = lon_deg * DEG_TO_RAD;
-    if (current_pitch > PITCH_LIMIT) current_pitch = PITCH_LIMIT;
-    if (current_pitch < -PITCH_LIMIT) current_pitch = -PITCH_LIMIT;
+void GlobeEngine::flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode, uint32_t duration_ms) {
+    // 目标纬度俯仰角：
+    // 在全屏居中模式下，目标地点对准地球正中心；
+    // 在下移避让模式下，地球整体俯仰向前倾斜 35°，使得目标地点自然提升并稳稳停留在下方拱形地球仪的穹顶黄金焦点！
+    float target_lat = is_avoidance_mode ? (lat_deg - 35.0f) : lat_deg;
+    float t_pitch = target_lat * DEG_TO_RAD;
+    if (t_pitch > PITCH_LIMIT) t_pitch = PITCH_LIMIT;
+    if (t_pitch < -PITCH_LIMIT) t_pitch = -PITCH_LIMIT;
+
+    float t_yaw = lon_deg * DEG_TO_RAD;
+    while (current_yaw > 3.14159265f) current_yaw -= 6.2831853f;
+    while (current_yaw < -3.14159265f) current_yaw += 6.2831853f;
+    while (t_yaw > 3.14159265f) t_yaw -= 6.2831853f;
+    while (t_yaw < -3.14159265f) t_yaw += 6.2831853f;
+
+    // 选取最短角位移（Shortest Arc），确保沿最近方向自然转动
+    float delta_yaw = t_yaw - current_yaw;
+    if (delta_yaw > 3.14159265f) {
+        delta_yaw -= 6.2831853f;
+    } else if (delta_yaw < -3.14159265f) {
+        delta_yaw += 6.2831853f;
+    }
+
+    if (duration_ms == 0) {
+        current_pitch = t_pitch;
+        current_yaw = t_yaw;
+        if (is_avoidance_mode) {
+            base_radius = 210.0f;
+            cy = 220;
+        } else {
+            base_radius = GLOBE_DEFAULT_RADIUS;
+            cy = GLOBE_CANVAS_HEIGHT / 2;
+        }
+        anim_active = false;
+        vel_pitch = 0.0f;
+        vel_yaw = 0.0f;
+        return;
+    }
+
+    anim_start_pitch = current_pitch;
+    anim_target_pitch = t_pitch;
+
+    anim_start_yaw = current_yaw;
+    anim_target_yaw = current_yaw + delta_yaw;
+
+    anim_start_radius = base_radius;
+    anim_target_radius = is_avoidance_mode ? 210.0f : GLOBE_DEFAULT_RADIUS;
+
+    anim_start_cy = cy;
+    anim_target_cy = is_avoidance_mode ? 220 : (GLOBE_CANVAS_HEIGHT / 2);
+
+    anim_start_ms = millis();
+    anim_duration_ms = duration_ms;
+    anim_active = true;
+
     vel_pitch = 0.0f;
     vel_yaw = 0.0f;
 }
@@ -58,6 +114,10 @@ void GlobeEngine::setSunPosition(float subsolar_lat, float subsolar_lon) {
 }
 
 void GlobeEngine::handleDrag(float delta_x, float delta_y) {
+    if (anim_active) {
+        anim_active = false; // 用户介入拖拽，打断飞行并保持当前位置
+    }
+
     float r = base_radius * current_zoom;
     if (r < 10.0f) return;
 
@@ -90,10 +150,34 @@ void GlobeEngine::resetOrientation(float target_lat_deg, float target_lon_deg) {
     vel_pitch = 0.0f;
     vel_yaw = 0.0012f;
     current_zoom = 1.0f;
+    anim_active = false;
 }
 
 void GlobeEngine::update(float dt_sec) {
-    if (fabsf(vel_yaw) > 1e-5f || fabsf(vel_pitch) > 1e-5f) {
+    if (anim_active) {
+        uint32_t now = millis();
+        uint32_t elapsed = now - anim_start_ms;
+        if (elapsed >= anim_duration_ms) {
+            anim_active = false;
+            current_pitch = anim_target_pitch;
+            current_yaw = anim_target_yaw;
+            base_radius = anim_target_radius;
+            cy = anim_target_cy;
+            vel_pitch = 0.0f;
+            vel_yaw = 0.0f;
+        } else {
+            float t = (float)elapsed / (float)anim_duration_ms;
+            // Ease-out cubic: 1 - (1 - t)^3
+            float ease = 1.0f - powf(1.0f - t, 3.0f);
+            current_pitch = anim_start_pitch + (anim_target_pitch - anim_start_pitch) * ease;
+            current_yaw = anim_start_yaw + (anim_target_yaw - anim_start_yaw) * ease;
+            base_radius = anim_start_radius + (anim_target_radius - anim_start_radius) * ease;
+            cy = anim_start_cy + (int16_t)((anim_target_cy - anim_start_cy) * ease);
+        }
+
+        while (current_yaw > 3.14159265f) current_yaw -= 6.2831853f;
+        while (current_yaw < -3.14159265f) current_yaw += 6.2831853f;
+    } else if (fabsf(vel_yaw) > 1e-5f || fabsf(vel_pitch) > 1e-5f) {
         current_yaw += vel_yaw;
         current_pitch += vel_pitch;
 

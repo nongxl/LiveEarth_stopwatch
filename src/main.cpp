@@ -216,25 +216,30 @@ static void transition_to_view(AppViewState new_state) {
     if (current_view_state == new_state) return;
 
     if (new_state == VIEW_GLOBE) {
-        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 233, 160
-        globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
+        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 (233, 160)
+        const PlaceLocation* p = place_mgr.getSelectedPlace();
+        if (p) {
+            globe.flyToLatLng(p->latitude, p->longitude, false, 500);
+        } else {
+            globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
+        }
         current_view_state = VIEW_GLOBE;
         M5.Display.fillScreen(COLOR_BG);
         draw_static_hud_markers();
         perf.last_hud_update = 0;
         Serial.println("[State] -> VIEW_GLOBE (Centered 3D Earth)");
     } else if (new_state == VIEW_PLACE_PREVIEW) {
-        // 进入预览模式：以所选地点为锚点大幅放大 (R: 210)，重心下移避让以给上部留出充足空间
+        // 进入预览模式：启动平滑自转飞掠动画，自然旋转并使所选地点成为下方避让地球仪的穹顶黄金焦点
         const PlaceLocation* p = place_mgr.getSelectedPlace();
         if (p) {
-            globe.focusLatLng(p->latitude, p->longitude);
+            globe.flyToLatLng(p->latitude, p->longitude, true, 650);
+        } else {
+            globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, 220, 210.0f);
         }
-        // 地球仪基准半径放大至 210px，内部中心设在 (233, 220)
-        globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, 220, 210.0f);
         current_view_state = VIEW_PLACE_PREVIEW;
         M5.Display.fillScreen(COLOR_BG);
         preview_view.requestRedraw();
-        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Full-Width 466 Canvas without Edge Clipping)");
+        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Smooth Fly-to & Focal Positioning)");
     } else if (new_state == VIEW_VIDEO_FULL) {
         // 进入对角线466黄金内接放大播放模式
         current_view_state = VIEW_VIDEO_FULL;
@@ -276,7 +281,7 @@ void loop() {
             place_mgr.nextPlace();
             const PlaceLocation* p = place_mgr.getSelectedPlace();
             if (p) {
-                globe.focusLatLng(p->latitude, p->longitude);
+                globe.flyToLatLng(p->latitude, p->longitude, false, 550);
                 Serial.printf("[BtnA] Switched & focused to: %s (%s)\n", p->name, p->country);
             }
         }
@@ -364,7 +369,7 @@ void loop() {
                         place_mgr.prevPlace();
                     }
                     const PlaceLocation* np = place_mgr.getSelectedPlace();
-                    if (np) globe.focusLatLng(np->latitude, np->longitude);
+                    if (np) globe.flyToLatLng(np->latitude, np->longitude, true, 550);
                     preview_view.requestRedraw();
                     Serial.printf("[Preview Swipe] Now at: %s\n", place_mgr.getSelectedPlace()->name);
                 } else if (press_duration < 350 && move_dist_sq < 64.0f) {
