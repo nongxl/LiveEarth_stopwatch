@@ -113,29 +113,45 @@ void PlaceDetailView::drawRightPanel(M5GFX& display, const PlaceLocation* place)
     display.setTextDatum(middle_center);
     display.setTextSize(1);
 
-    // 第 1 组: 实时广播状态 (Y: 154)
-    display.setTextColor(0x07E0, COLOR_BG); // 纯绿大字
-    display.drawString("* LIVE", rx, 154);
-    display.setTextColor(0x7BEF, COLOR_BG);
-    display.drawString("ONLINE", rx, 170);
+    if (place->is_online) {
+        // 实时广播状态 (Y: 154)
+        display.setTextColor(0x07E0, COLOR_BG); // 纯绿大字
+        display.drawString("* LIVE", rx, 154);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString("ONLINE", rx, 170);
 
-    // 第 2 组: 官方认证 (Y: 208)
-    display.setTextColor(0xFFFF, COLOR_BG); // 纯白高亮
-    display.drawString("OFFICIAL", rx, 208);
-    display.setTextColor(0x7BEF, COLOR_BG);
-    display.drawString("VERIFIED", rx, 224);
+        // 官方认证 (Y: 208)
+        display.setTextColor(0xFFFF, COLOR_BG); // 纯白高亮
+        display.drawString("OFFICIAL", rx, 208);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString("STREAM", rx, 224);
+    } else {
+        // 离线典藏状态 (Y: 154)
+        display.setTextColor(0xFDC0, COLOR_BG); // 琥珀金
+        display.drawString("OFFLINE", rx, 154);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString("ARCHIVE", rx, 170);
+
+        // 审核流状态 (Y: 208)
+        display.setTextColor(0xFFFF, COLOR_BG); // 纯白
+        display.drawString("IN REVIEW", rx, 208);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString("AUDIT", rx, 224);
+    }
 }
 
 void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocation* place) {
     // 中等大小预览视窗 (X: 113, Y: 122, W: 240, H: 135, 16:9 标准比例)
-    if (snapshot_player.hasValidFrame()) {
+    bool has_stream = place->is_online && (place->snapshot_url != nullptr) && (strlen(place->snapshot_url) > 0);
+
+    if (has_stream && snapshot_player.hasValidFrame()) {
         snapshot_player.renderPreview(display, PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H);
     } else {
-        display.fillRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x0842);
+        display.fillRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x0821);
     }
 
-    display.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x4EEB);
-    display.drawRect(PREVIEW_X - 1, PREVIEW_Y - 1, PREVIEW_W + 2, PREVIEW_H + 2, 0x2354);
+    display.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, has_stream ? 0x4EEB : 0x2354);
+    display.drawRect(PREVIEW_X - 1, PREVIEW_Y - 1, PREVIEW_W + 2, PREVIEW_H + 2, 0x1B55);
 
     // 四角 HUD 瞄准锁框
     int16_t b_len = 8;
@@ -151,56 +167,74 @@ void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocatio
     display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1 - b_len, PREVIEW_Y + PREVIEW_H - 1, 0xFFFF);
     display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1 - b_len, 0xFFFF);
 
-    // 左上角: 实时流角标
-    display.setTextDatum(top_left);
-    display.setTextSize(1);
-    if (snapshot_player.hasValidFrame()) {
-        display.setTextColor(0x07E0, 0x0000);
-        display.drawString("* LIVE SNAPSHOT", PREVIEW_X + 8, PREVIEW_Y + 7);
-    } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
-        display.setTextColor(0x07FF, 0x0842);
-        display.drawString("* LOADING...", PREVIEW_X + 8, PREVIEW_Y + 7);
-    } else {
-        display.setTextColor(0xFDC0, 0x0842);
-        display.drawString("* DEMO FEED", PREVIEW_X + 8, PREVIEW_Y + 7);
-    }
-
-    // 右上角: 来源许可与网络指示
-    display.setTextDatum(top_right);
-    if (network_mgr.isConnected()) {
-        display.setTextColor(0x07E0, 0x0000);
-        display.drawString("ONLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
-    } else {
-        display.setTextColor(0x7BEF, 0x0842);
-        display.drawString("OFFLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
-    }
-
-    // 中央大号发光播放按钮与高对比度文字 (字号大、极易阅读与点击操作！)
     int cx = PREVIEW_X + PREVIEW_W / 2;
     int cy = PREVIEW_Y + PREVIEW_H / 2;
-
     float pulse = 0.5f + 0.5f * sinf(pulse_phase);
     uint16_t btn_col = (pulse > 0.4f ? 0xFFFF : 0x4EEB);
 
-    if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
-        // 动态加载中：赛博光环扫描效果
-        display.setTextDatum(middle_center);
+    if (has_stream) {
+        // === 在线实时快照模式 ===
+        display.setTextDatum(top_left);
         display.setTextSize(1);
-        display.setTextColor(0x07FF, 0x0842);
-        display.drawString("FETCHING LIVE CAMERA...", cx, cy);
+        if (snapshot_player.hasValidFrame()) {
+            display.setTextColor(0x07E0, 0x0000);
+            display.drawString("* LIVE SNAPSHOT", PREVIEW_X + 8, PREVIEW_Y + 7);
+        } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+            display.setTextColor(0x07FF, 0x0821);
+            display.drawString("* LOADING...", PREVIEW_X + 8, PREVIEW_Y + 7);
+        } else {
+            display.setTextColor(0xFDC0, 0x0821);
+            display.drawString("* CONNECTING...", PREVIEW_X + 8, PREVIEW_Y + 7);
+        }
+
+        display.setTextDatum(top_right);
+        display.setTextColor(network_mgr.isConnected() ? 0x07E0 : 0x7BEF, 0x0000);
+        display.drawString(network_mgr.isConnected() ? "ONLINE" : "OFFLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+
+        if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(0x07FF, 0x0821);
+            display.drawString("FETCHING LIVE CAMERA...", cx, cy);
+        } else {
+            display.fillTriangle(cx - 8, cy - 12, cx - 8, cy + 8, cx + 10, cy - 2, btn_col);
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(btn_col, 0x0000);
+            display.drawString("TAP TO PLAY FULLSCREEN", cx, cy + 24);
+        }
     } else {
-        // 绘制显眼的大播放三角形与全屏提示
-        display.fillTriangle(cx - 8, cy - 12, cx - 8, cy + 8, cx + 10, cy - 2, btn_col);
+        // === 官方离线典藏卡模式 (诚实规范，绝不伪造假图) ===
+        display.setTextDatum(top_left);
+        display.setTextSize(1);
+        display.setTextColor(0xFDC0, 0x0821);
+        display.drawString("* ARCHIVE DOSSIER", PREVIEW_X + 8, PREVIEW_Y + 7);
+
+        display.setTextDatum(top_right);
+        display.setTextColor(0x4EEB, 0x0821);
+        display.drawString("VERIFIED", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+
+        // 科技准心图标
+        display.drawCircle(cx, cy - 10, 14, 0x2354);
+        display.drawCircle(cx, cy - 10, 4, place->theme_color);
+        display.drawLine(cx - 20, cy - 10, cx + 20, cy - 10, 0x2354);
+        display.drawLine(cx, cy - 30, cx, cy + 10, 0x2354);
 
         display.setTextDatum(middle_center);
         display.setTextSize(1);
-        display.setTextColor(btn_col, 0x0000);
-        display.drawString("TAP TO PLAY FULLSCREEN", cx, cy + 24);
+        display.setTextColor(0xFFFF, 0x0821);
+        display.drawString("STREAM AUDIT IN PROGRESS", cx, cy + 16);
+
+        char src_buf[48];
+        snprintf(src_buf, sizeof(src_buf), "SRC: %.24s", place->cam_source);
+        display.setTextColor(0x7BEF, 0x0821);
+        display.drawString(src_buf, cx, cy + 30);
     }
 
-    // 底部摄像机官方名称 (纯白粗体)
+    // 底部摄像机官方名称 (纯白/浅灰)
     display.setTextDatum(bottom_left);
-    display.setTextColor(0xFFFF, 0x0000);
+    display.setTextSize(1);
+    display.setTextColor(has_stream ? 0xFFFF : 0xD69A, 0x0000);
     display.drawString(place->cam_name, PREVIEW_X + 8, PREVIEW_Y + PREVIEW_H - 7);
 }
 

@@ -40,14 +40,21 @@ void VideoPlayerView::update(uint32_t now_ms) {
 void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
     if (!place) return;
 
+    bool has_stream = place->is_online && (place->snapshot_url != nullptr) && (strlen(place->snapshot_url) > 0);
+
     if (needs_full_redraw || place != last_rendered_place) {
         display.fillScreen(COLOR_BG);
 
         // 1. 顶部弧形 HUD (Y: 36 ~ 100)
         display.setTextDatum(middle_center);
         display.setTextSize(1);
-        display.setTextColor(0x07E0, COLOR_BG);
-        display.drawString("* LIVE BROADCAST STREAM *", SCREEN_CENTER_X, 42);
+        if (has_stream) {
+            display.setTextColor(0x07E0, COLOR_BG);
+            display.drawString("* LIVE BROADCAST STREAM *", SCREEN_CENTER_X, 42);
+        } else {
+            display.setTextColor(0xFDC0, COLOR_BG);
+            display.drawString("* OFFICIAL PLACE DOSSIER *", SCREEN_CENTER_X, 42);
+        }
 
         display.setTextSize(2);
         display.setTextColor(0xFFFF, COLOR_BG);
@@ -60,20 +67,46 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         display.drawString(sub_buf, SCREEN_CENTER_X, 96);
 
         // 2. 16:9 黄金内接视频视窗底色与微光科技框 (X: 30, Y: 119, W: 406, H: 228)
-        // 对角线 = sqrt(406^2 + 228^2) = 466px
-        if (snapshot_player.hasValidFrame()) {
+        if (has_stream && snapshot_player.hasValidFrame()) {
             snapshot_player.renderFullscreen(display, VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H);
         } else {
             display.fillRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, 0x0821);
-            if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+            if (has_stream && snapshot_player.getState() == SNAP_STATE_FETCHING) {
                 display.setTextDatum(middle_center);
                 display.setTextSize(1);
                 display.setTextColor(0x07FF, 0x0821);
                 display.drawString("FETCHING HIGH RESOLUTION STREAM...", SCREEN_CENTER_X, VIDEO_Y + VIDEO_H / 2);
+            } else if (!has_stream) {
+                // 离线典藏卡大屏内容
+                display.setTextDatum(middle_center);
+                display.setTextSize(1);
+                display.setTextColor(place->theme_color, 0x0821);
+                display.drawString(place->local_name, SCREEN_CENTER_X, VIDEO_Y + 45);
+
+                display.setTextColor(0xFFFF, 0x0821);
+                char geo_buf[64];
+                snprintf(geo_buf, sizeof(geo_buf), "%4.2f%c, %5.2f%c  |  ELEV: %dm  |  UTC%+d",
+                         fabsf(place->latitude), (place->latitude >= 0 ? 'N' : 'S'),
+                         fabsf(place->longitude), (place->longitude >= 0 ? 'E' : 'W'),
+                         place->elevation_m, place->utc_offset);
+                display.drawString(geo_buf, SCREEN_CENTER_X, VIDEO_Y + 75);
+
+                display.setTextColor(0xD69A, 0x0821);
+                char hl_buf[72];
+                snprintf(hl_buf, sizeof(hl_buf), "%.48s", place->highlight);
+                display.drawString(hl_buf, SCREEN_CENTER_X, VIDEO_Y + 115);
+
+                display.setTextColor(0x4EEB, 0x0821);
+                display.drawString("VERIFIED GLOBAL LANDMARK  *  STREAM IN AUDIT", SCREEN_CENTER_X, VIDEO_Y + 155);
+
+                display.setTextColor(0x7BEF, 0x0821);
+                char src_desc[64];
+                snprintf(src_desc, sizeof(src_desc), "Authority: %s", place->cam_source);
+                display.drawString(src_desc, SCREEN_CENTER_X, VIDEO_Y + 185);
             }
         }
 
-        display.drawRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, 0x3C19);
+        display.drawRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, has_stream ? 0x3C19 : 0x2354);
         display.drawRect(VIDEO_X - 1, VIDEO_Y - 1, VIDEO_W + 2, VIDEO_H + 2, 0x1B55);
 
         // 四角 HUD 瞄准锁框
@@ -88,7 +121,7 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         display.drawLine(VIDEO_X, VIDEO_Y + VIDEO_H - 1, VIDEO_X, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
 
         display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1 - b_len, VIDEO_Y + VIDEO_H - 1, 0xFFFF);
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
+        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + b_len, 0xFFFF);
 
         // 水印与合规背书
         display.setTextDatum(top_left);
@@ -112,28 +145,38 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
     }
 
     // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
-    // 视频内部右上角状态码与动态帧序号
-    char stat_buf[32];
-    snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
-    display.setTextDatum(top_right);
-    display.setTextColor(0x4EEB, 0x0821);
-    display.drawString(stat_buf, VIDEO_X + VIDEO_W - 22, VIDEO_Y + 10);
-    // 动态跳动 LIVE 指示灯
-    display.fillCircle(VIDEO_X + VIDEO_W - 12, VIDEO_Y + 14, (millis() % 1000 < 500) ? 3 : 2, 0x07E0);
+    if (has_stream) {
+        char stat_buf[32];
+        snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
+        display.setTextDatum(top_right);
+        display.setTextColor(0x4EEB, 0x0821);
+        display.drawString(stat_buf, VIDEO_X + VIDEO_W - 22, VIDEO_Y + 10);
+        display.fillCircle(VIDEO_X + VIDEO_W - 12, VIDEO_Y + 14, (millis() % 1000 < 500) ? 3 : 2, 0x07E0);
 
-    // 实时时间码 (左下角)
-    uint32_t secs = simulated_seconds % 60;
-    uint32_t mins = (simulated_seconds / 60) % 60;
-    uint32_t hrs  = (simulated_seconds / 3600) % 24;
-    char timecode[32];
-    snprintf(timecode, sizeof(timecode), "LIVE %02u:%02u:%02u", hrs, mins, secs);
+        uint32_t secs = simulated_seconds % 60;
+        uint32_t mins = (simulated_seconds / 60) % 60;
+        uint32_t hrs  = (simulated_seconds / 3600) % 24;
+        char timecode[32];
+        snprintf(timecode, sizeof(timecode), "LIVE %02u:%02u:%02u", hrs, mins, secs);
 
-    display.setTextDatum(bottom_left);
-    display.setTextColor(0xFFFF, 0x0821);
-    display.drawString(timecode, VIDEO_X + 12, VIDEO_Y + VIDEO_H - 10);
+        display.setTextDatum(bottom_left);
+        display.setTextColor(0xFFFF, 0x0821);
+        display.drawString(timecode, VIDEO_X + 12, VIDEO_Y + VIDEO_H - 10);
 
-    // 右下角动态跳动脉冲条柱 (Audio visualizer)
-    display.setTextDatum(bottom_right);
-    display.setTextColor(0x07E0, 0x0821);
-    display.drawString("AUDIO OK", VIDEO_X + VIDEO_W - 12, VIDEO_Y + VIDEO_H - 10);
+        display.setTextDatum(bottom_right);
+        display.setTextColor(0x07E0, 0x0821);
+        display.drawString("AUDIO OK", VIDEO_X + VIDEO_W - 12, VIDEO_Y + VIDEO_H - 10);
+    } else {
+        display.setTextDatum(top_right);
+        display.setTextColor(0xFDC0, 0x0821);
+        display.drawString("ARCHIVE", VIDEO_X + VIDEO_W - 12, VIDEO_Y + 10);
+
+        display.setTextDatum(bottom_left);
+        display.setTextColor(0x7BEF, 0x0821);
+        display.drawString("AUDIT QUEUE #2026", VIDEO_X + 12, VIDEO_Y + VIDEO_H - 10);
+
+        display.setTextDatum(bottom_right);
+        display.setTextColor(0x4EEB, 0x0821);
+        display.drawString("100 PLACES", VIDEO_X + VIDEO_W - 12, VIDEO_Y + VIDEO_H - 10);
+    }
 }
