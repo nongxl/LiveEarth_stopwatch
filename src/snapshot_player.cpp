@@ -5,6 +5,42 @@
 #include <HTTPClient.h>
 #include <esp_heap_caps.h>
 
+// STB 图像库配置：所有解码堆内存全部在 8MB PSRAM 中分配，零 SRAM 消耗
+#define STBI_MALLOC(sz)        heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+#define STBI_REALLOC(p, sz)    heap_caps_realloc(p, sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+#define STBI_FREE(p)           free(p)
+#define STBI_ONLY_JPEG
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+// 高性能轻量重采样器：将解码出的 RGB888 图像缩放并转换推送到屏幕目标视口
+static void renderDecodedRGB888(M5GFX& display, const uint8_t* rgb, int src_w, int src_h, int dst_x, int dst_y, int dst_w, int dst_h) {
+    if (!rgb || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) return;
+
+    // 仅分配一行目标宽度的行像素缓冲区 (dst_w 个 uint16_t RGB565，约几百字节)
+    uint16_t* line_buf = (uint16_t*)heap_caps_malloc(dst_w * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_INTERNAL);
+    if (!line_buf) return;
+
+    display.startWrite();
+    for (int dy = 0; dy < dst_h; ++dy) {
+        int sy = (dy * src_h) / dst_h;
+        const uint8_t* src_row = rgb + (sy * src_w * 3);
+
+        for (int dx = 0; dx < dst_w; ++dx) {
+            int sx = (dx * src_w) / dst_w;
+            const uint8_t* px = src_row + (sx * 3);
+            uint16_t r = px[0] >> 3;
+            uint16_t g = px[1] >> 2;
+            uint16_t b = px[2] >> 3;
+            line_buf[dx] = (r << 11) | (g << 5) | b;
+        }
+        display.pushImage(dst_x, dst_y + dy, dst_w, 1, line_buf);
+    }
+    display.endWrite();
+
+    free(line_buf);
+}
+
 SnapshotPlayer snapshot_player;
 
 SnapshotPlayer::SnapshotPlayer()
@@ -200,9 +236,22 @@ void SnapshotPlayer::fetchTaskWorker() {
 void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            // M5GFX 硬件解码 JPEG 并从左上角 (x, y) 适配渲染到卡片视口
+            // 1. 优先尝试 M5GFX 硬件高速解码 (Baseline JPEG)
             bool ok = display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
-            Serial.printf("[SnapshotPlayer] drawJpg Preview (%d,%d,%d,%d) res=%d, size=%u\n", x, y, w, h, ok ? 1 : 0, (uint32_t)buffer_size);
+            if (!ok) {
+                // 2. 若硬件解码不支持 Progressive JPEG，自动启用 PSRAM STB 全能解码器
+                int img_w = 0, img_h = 0, channels = 0;
+                uint8_t* rgb = stbi_load_from_memory(frame_buffer, (int)buffer_size, &img_w, &img_h, &channels, 3);
+                if (rgb) {
+                    renderDecodedRGB888(display, rgb, img_w, img_h, x, y, w, h);
+                    stbi_image_free(rgb);
+                    ok = true;
+                    Serial.printf("[SnapshotPlayer] Progressive JPEG decoded with STB: %dx%d -> %dx%d\n", img_w, img_h, w, h);
+                }
+            }
+            if (!ok) {
+                display.fillRect(x, y, w, h, 0x0842);
+            }
             xSemaphoreGive(buffer_mutex);
         }
     }
@@ -211,9 +260,22 @@ void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t
 void SnapshotPlayer::renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            // 全屏视窗从左上角 (x, y) 开始解码绘制
+            // 1. 优先尝试 M5GFX 硬件高速解码
             bool ok = display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
-            Serial.printf("[SnapshotPlayer] drawJpg Fullscreen (%d,%d,%d,%d) res=%d, size=%u\n", x, y, w, h, ok ? 1 : 0, (uint32_t)buffer_size);
+            if (!ok) {
+                // 2. 若硬件解码不支持 Progressive JPEG，自动启用 PSRAM STB 全能解码器
+                int img_w = 0, img_h = 0, channels = 0;
+                uint8_t* rgb = stbi_load_from_memory(frame_buffer, (int)buffer_size, &img_w, &img_h, &channels, 3);
+                if (rgb) {
+                    renderDecodedRGB888(display, rgb, img_w, img_h, x, y, w, h);
+                    stbi_image_free(rgb);
+                    ok = true;
+                    Serial.printf("[SnapshotPlayer] Fullscreen Progressive JPEG decoded with STB: %dx%d -> %dx%d\n", img_w, img_h, w, h);
+                }
+            }
+            if (!ok) {
+                display.fillRect(x, y, w, h, 0x0821);
+            }
             xSemaphoreGive(buffer_mutex);
         }
     }
