@@ -38,6 +38,7 @@ public:
         return false;
     }
     uint32_t getLastFetchTime() const { return last_fetch_ms; }
+    uint32_t getFrameSeq() const { return frame_seq; }
 
     // 停止并清理缓冲
     void stop();
@@ -46,6 +47,7 @@ private:
     SnapshotState current_state;
     volatile bool new_frame_flag;
     bool has_decoded_frame;
+    uint32_t frame_seq;
     uint8_t* frame_buffer;
     size_t buffer_size;
     size_t buffer_capacity;

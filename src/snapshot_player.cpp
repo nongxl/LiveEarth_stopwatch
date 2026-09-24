@@ -19,6 +19,7 @@ SnapshotPlayer::SnapshotPlayer()
     : current_state(SNAP_STATE_IDLE),
       new_frame_flag(false),
       has_decoded_frame(false),
+      frame_seq(0),
       frame_buffer(nullptr),
       buffer_size(0),
       buffer_capacity(SNAPSHOT_MAX_BUF_SIZE),
@@ -99,8 +100,19 @@ void SnapshotPlayer::loadPlace(const PlaceLocation* place, bool force_refresh) {
     uint32_t now = millis();
     if (is_new_place || force_refresh || (now - last_fetch_ms > SNAPSHOT_REFRESH_INTERVAL_MS)) {
         if (!task_running) {
-            strncpy(current_url, place->snapshot_url, sizeof(current_url) - 1);
-            current_url[sizeof(current_url) - 1] = '\0';
+            frame_seq++;
+            // 针对测试源轮换机位种子 (如 mtfuji_1, mtfuji_2...)，模拟多视角真实动态切换
+            if (strstr(place->snapshot_url, "picsum.photos/seed/")) {
+                uint32_t angle_idx = (frame_seq % 6) + 1;
+                snprintf(current_url, sizeof(current_url), "https://picsum.photos/seed/%s_%u/400/225.jpg", place->id, (unsigned int)angle_idx);
+            } else {
+                // 真实动态摄像头：附加毫秒时间戳参数击穿云端 CDN 静态缓存
+                if (strchr(place->snapshot_url, '?')) {
+                    snprintf(current_url, sizeof(current_url), "%s&_t=%lu", place->snapshot_url, (unsigned long)now);
+                } else {
+                    snprintf(current_url, sizeof(current_url), "%s?_t=%lu", place->snapshot_url, (unsigned long)now);
+                }
+            }
             startAsyncFetch(current_url);
         }
     }

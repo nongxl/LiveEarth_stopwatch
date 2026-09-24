@@ -47,7 +47,7 @@
 #define WIFI_RETRY_INTERVAL_MS  20000
 
 // Snapshot Stream Engine Settings
-#define SNAPSHOT_REFRESH_INTERVAL_MS 10000  // 10秒定时获取最新一帧
-#define SNAPSHOT_HTTP_TIMEOUT_MS     6000   // 6秒超时保护
+#define SNAPSHOT_REFRESH_INTERVAL_MS 4500   // 4.5秒定时轮询最新现场动态帧
+#define SNAPSHOT_HTTP_TIMEOUT_MS     5000   // 5秒超时保护
 #define SNAPSHOT_MAX_BUF_SIZE        (128 * 1024) // 128KB PSRAM 接收缓冲区
 

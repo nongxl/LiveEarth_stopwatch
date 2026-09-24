@@ -112,12 +112,14 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
     }
 
     // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
-    // 视频内部右上角状态码
+    // 视频内部右上角状态码与动态帧序号
     char stat_buf[32];
-    snprintf(stat_buf, sizeof(stat_buf), "1080P 30FPS | 4.6Mbps");
+    snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
     display.setTextDatum(top_right);
     display.setTextColor(0x4EEB, 0x0821);
-    display.drawString(stat_buf, VIDEO_X + VIDEO_W - 12, VIDEO_Y + 10);
+    display.drawString(stat_buf, VIDEO_X + VIDEO_W - 22, VIDEO_Y + 10);
+    // 动态跳动 LIVE 指示灯
+    display.fillCircle(VIDEO_X + VIDEO_W - 12, VIDEO_Y + 14, (millis() % 1000 < 500) ? 3 : 2, 0x07E0);
 
     // 实时时间码 (左下角)
     uint32_t secs = simulated_seconds % 60;
