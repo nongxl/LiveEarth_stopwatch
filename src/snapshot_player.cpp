@@ -17,7 +17,8 @@ SnapshotPlayer snapshot_player;
 
 SnapshotPlayer::SnapshotPlayer()
     : current_state(SNAP_STATE_IDLE),
-      new_frame_flag(false),
+      need_decode(false),
+      frame_ready(false),
       has_decoded_frame(false),
       frame_seq(0),
       frame_buffer(nullptr),
@@ -64,7 +65,6 @@ void SnapshotPlayer::init() {
     }
 
     // 在 PSRAM 中预先创建好预览视窗 (240x135) 和全屏视窗 (406x228) 两个 Canvas 帧缓存
-    // 两个 Canvas 合计仅占约 250 KB PSRAM，换取 60FPS 零卡顿的瞬时渲染与 100% 正确的色彩字节序
     if (!canvas_preview.getBuffer()) {
         canvas_preview.setColorDepth(16);
         canvas_preview.setPsram(true);
@@ -88,6 +88,9 @@ void SnapshotPlayer::loadPlace(const PlaceLocation* place, bool force_refresh) {
 
     if (is_new_place) {
         has_decoded_frame = false;
+        need_decode = false;
+        frame_ready = false;
+        frame_seq = 0;
         if (canvas_preview.getBuffer()) canvas_preview.fillScreen(0x0842);
         if (canvas_fullscreen.getBuffer()) canvas_fullscreen.fillScreen(0x0821);
     }
@@ -151,7 +154,7 @@ void SnapshotPlayer::fetchTaskStatic(void* param) {
 }
 
 void SnapshotPlayer::fetchTaskWorker() {
-    Serial.printf("[SnapshotPlayer] Fetching frame from: %s\n", current_url);
+    Serial.printf("[SnapshotPlayer] Fetching frame #%u from: %s\n", frame_seq, current_url);
 
     HTTPClient http;
     WiFiClientSecure secure_client;
@@ -173,8 +176,10 @@ void SnapshotPlayer::fetchTaskWorker() {
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setReuse(false);
     http.setTimeout(SNAPSHOT_HTTP_TIMEOUT_MS);
-    http.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    http.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
     http.addHeader("Accept", "image/jpeg,image/*,*/*");
+    http.addHeader("Cache-Control", "no-cache");
+    http.addHeader("Pragma", "no-cache");
 
     int http_code = http.GET();
     if (http_code == HTTP_CODE_OK) {
@@ -216,8 +221,9 @@ void SnapshotPlayer::fetchTaskWorker() {
                 // 验证 JPEG 幻数头 (SOI: 0xFF 0xD8)
                 if (downloaded_bytes > 4 && frame_buffer[0] == 0xFF && frame_buffer[1] == 0xD8) {
                     success = true;
-                    Serial.printf("[SnapshotPlayer] [OK] Downloaded %u KB JPEG in %u ms\n",
+                    Serial.printf("[SnapshotPlayer] [OK] Downloaded %u KB frame #%u in %u ms\n",
                                   (uint32_t)(downloaded_bytes / 1024),
+                                  frame_seq,
                                   (uint32_t)(millis() - fetch_start_ms));
                 } else {
                     Serial.printf("[SnapshotPlayer] [WARN] Invalid JPEG header (size=%u, byte0=0x%02X)\n",
@@ -234,7 +240,7 @@ void SnapshotPlayer::fetchTaskWorker() {
     if (success) {
         current_state = SNAP_STATE_READY;
         last_fetch_ms = millis();
-        new_frame_flag = true;
+        need_decode = true; // 告知主线程：新数据就绪，请在下一次 update 中解码！
     } else {
         current_state = SNAP_STATE_ERROR;
     }
@@ -243,8 +249,7 @@ void SnapshotPlayer::fetchTaskWorker() {
 }
 
 // ----------------------------------------------------------------------
-// 异步预解码管线：当下载完新 JPEG 后仅解码一次，将像素高速转存至 PSRAM Canvas
-// 彻底解决主线程每帧重复 STB 解码导致的卡顿、掉帧与崩溃问题
+// 预解码管线：在主线程中将刚下载的新帧快速转存至 PSRAM Canvas (耗时约 20ms)
 // ----------------------------------------------------------------------
 void SnapshotPlayer::decodeAndCacheFrame(M5GFX& display) {
     if (!frame_buffer || buffer_size == 0) return;
@@ -255,8 +260,7 @@ void SnapshotPlayer::decodeAndCacheFrame(M5GFX& display) {
         if (ok) {
             canvas_preview.drawJpg(frame_buffer, buffer_size, 0, 0, 240, 135);
             has_decoded_frame = true;
-            new_frame_flag = false;
-            Serial.println("[SnapshotPlayer] Hardware Baseline JPEG cached to Canvas.");
+            Serial.printf("[SnapshotPlayer] [Baseline JPEG] Frame #%u cached into Canvas.\n", frame_seq);
         } else {
             // 2. 硬件不支持（如 Progressive JPEG），使用 PSRAM STB 全功能解码器
             int img_w = 0, img_h = 0, channels = 0;
@@ -290,8 +294,7 @@ void SnapshotPlayer::decodeAndCacheFrame(M5GFX& display) {
 
                 stbi_image_free(rgb);
                 has_decoded_frame = true;
-                new_frame_flag = false;
-                Serial.printf("[SnapshotPlayer] Progressive JPEG pre-decoded (%dx%d) into PSRAM Canvas!\n", img_w, img_h);
+                Serial.printf("[SnapshotPlayer] [Progressive JPEG] Frame #%u decoded & cached into PSRAM Canvas!\n", frame_seq);
             } else {
                 Serial.println("[SnapshotPlayer] [FAIL] STB decode failed!");
             }
@@ -301,37 +304,44 @@ void SnapshotPlayer::decodeAndCacheFrame(M5GFX& display) {
 }
 
 void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
-    if (new_frame_flag || !has_decoded_frame) {
-        if (hasValidFrame()) {
-            decodeAndCacheFrame(display);
-        }
-    }
-
     if (has_decoded_frame && canvas_preview.getBuffer()) {
         canvas_preview.pushSprite(&display, x, y);
     } else {
         display.fillRect(x, y, w, h, 0x0842);
+        if (current_state == SNAP_STATE_FETCHING) {
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(0x07FF, 0x0842);
+            display.drawString("LOADING LIVE FEED...", x + w / 2, y + h / 2);
+        }
     }
 }
 
 void SnapshotPlayer::renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
-    if (new_frame_flag || !has_decoded_frame) {
-        if (hasValidFrame()) {
-            decodeAndCacheFrame(display);
-        }
-    }
-
     if (has_decoded_frame && canvas_fullscreen.getBuffer()) {
         canvas_fullscreen.pushSprite(&display, x, y);
     } else {
         display.fillRect(x, y, w, h, 0x0821);
+        if (current_state == SNAP_STATE_FETCHING) {
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(0x07FF, 0x0821);
+            display.drawString("FETCHING HIGH RESOLUTION STREAM...", x + w / 2, y + h / 2);
+        }
     }
 }
 
 void SnapshotPlayer::update(uint32_t now_ms) {
-    // 定时轮询与自动重刷新逻辑
+    // 1. 如果后台任务刚下载完新 JPEG，立即在主线程 PSRAM 中执行解码与重采样
+    if (need_decode) {
+        need_decode = false;
+        decodeAndCacheFrame(M5.Display);
+        frame_ready = true; // 解码完成，立刻通知视图层重绘刷新底图！
+    }
+
+    // 2. 定时轮询与自动重刷新逻辑 (每 4.5 秒自动抓取最新一帧)
     if (active_place && active_place->snapshot_url && strlen(active_place->snapshot_url) > 0) {
-        if (current_state == SNAP_STATE_READY && (now_ms - last_fetch_ms > SNAPSHOT_REFRESH_INTERVAL_MS)) {
+        if (!task_running && (now_ms - last_fetch_ms > SNAPSHOT_REFRESH_INTERVAL_MS)) {
             loadPlace(active_place, true);
         }
     }
@@ -341,4 +351,6 @@ void SnapshotPlayer::stop() {
     current_state = SNAP_STATE_IDLE;
     active_place = nullptr;
     has_decoded_frame = false;
+    need_decode = false;
+    frame_ready = false;
 }

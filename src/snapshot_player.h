@@ -22,21 +22,24 @@ public:
     // 请求加载指定地点的实时快照
     void loadPlace(const PlaceLocation* place, bool force_refresh = false);
 
-    // 绘制到中等预览窗口 (居中适应 maxWidth x maxHeight)
+    // 绘制到中等预览窗口 (240x135)
     void renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h);
 
-    // 绘制到全屏 16:9 播放器 (406x228 居中)
+    // 绘制到全屏 16:9 播放器 (406x228)
     void renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h);
 
     SnapshotState getState() const { return current_state; }
     bool hasValidFrame() const { return current_state == SNAP_STATE_READY && buffer_size > 0; }
+
+    // 视图层消费新帧标记：当且仅当新帧成功解码进 Canvas 后返回 true
     bool hasNewFrame() {
-        if (new_frame_flag) {
-            new_frame_flag = false;
+        if (frame_ready) {
+            frame_ready = false;
             return true;
         }
         return false;
     }
+
     uint32_t getLastFetchTime() const { return last_fetch_ms; }
     uint32_t getFrameSeq() const { return frame_seq; }
 
@@ -45,9 +48,11 @@ public:
 
 private:
     SnapshotState current_state;
-    volatile bool new_frame_flag;
+    volatile bool need_decode;     // 后台下载完成，等待主线程解码
+    volatile bool frame_ready;     // 主线程解码完成，等待视图推送重绘
     bool has_decoded_frame;
     uint32_t frame_seq;
+
     uint8_t* frame_buffer;
     size_t buffer_size;
     size_t buffer_capacity;
