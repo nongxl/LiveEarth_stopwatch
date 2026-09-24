@@ -52,8 +52,8 @@
 | **Phase 7** | 全球 100 处顶级名胜精选数据库入库（覆盖全大洲各大类目、真实海拔与法定当地时区） | **已完成** |
 | **Phase 8** | 数据质量自动化质检工具链 (`check_qa.py`) 与固件一键导出脚本 (`export_firmware_data.py`) | **已完成** |
 | **Phase 9** | 摄像头多协议播放抽象层 (`CameraPlayer` 基类 + `SnapshotPlayer` 多态插件架构) | **已完成** |
-| **Phase 10**| 官方真实公共流探测 (`probe_official_sources.py`)、USGS 活跃火山快照接入与网络拉流 | **已完成** |
-| **Phase 11**| 固件 OTA 与数据动态增量更新机制 (Data Update Pipeline) | 待开发 |
+| **Phase 10**| 官方真实公共流审核实装（香港天文台维港/夏威夷火山/富士山/时报广场、网络状态感知、AMOLED 硬件显存防错位、异步中断） | **已完成** |
+| **Phase 11**| 固件 OTA 与数据动态增量更新机制 (Data Update Pipeline) | **进行中** |
 
 ---
 
