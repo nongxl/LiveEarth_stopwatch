@@ -4,35 +4,36 @@
 #include <M5Unified.h>
 #include "place_marker.h"
 
-enum SnapshotState {
-    SNAP_STATE_IDLE = 0,
-    SNAP_STATE_FETCHING,
-    SNAP_STATE_READY,
-    SNAP_STATE_ERROR
-};
+#include "camera_player.h"
 
-class SnapshotPlayer {
+typedef CameraPlayerState SnapshotState;
+#define SNAP_STATE_IDLE     CAM_STATE_IDLE
+#define SNAP_STATE_FETCHING CAM_STATE_FETCHING
+#define SNAP_STATE_READY    CAM_STATE_READY
+#define SNAP_STATE_ERROR    CAM_STATE_ERROR
+
+class SnapshotPlayer : public CameraPlayer {
 public:
     SnapshotPlayer();
-    ~SnapshotPlayer();
+    virtual ~SnapshotPlayer();
 
-    void init();
-    void update(uint32_t now_ms);
+    virtual void init() override;
+    virtual void update(uint32_t now_ms) override;
 
     // 请求加载指定地点的实时快照
-    void loadPlace(const PlaceLocation* place, bool force_refresh = false);
+    virtual void loadPlace(const PlaceLocation* place, bool force_refresh = false) override;
 
     // 绘制到中等预览窗口 (240x135)
-    void renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h);
+    virtual void renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) override;
 
     // 绘制到全屏 16:9 播放器 (406x228)
-    void renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h);
+    virtual void renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) override;
 
-    SnapshotState getState() const { return current_state; }
-    bool hasValidFrame() const { return current_state == SNAP_STATE_READY && buffer_size > 0; }
+    virtual CameraPlayerState getState() const override { return current_state; }
+    virtual bool hasValidFrame() const override { return current_state == CAM_STATE_READY && buffer_size > 0; }
 
     // 视图层消费新帧标记：当且仅当新帧成功解码进 Canvas 后返回 true
-    bool hasNewFrame() {
+    virtual bool hasNewFrame() override {
         if (frame_ready) {
             frame_ready = false;
             return true;
@@ -40,11 +41,12 @@ public:
         return false;
     }
 
+    virtual uint32_t getFrameSeq() const override { return frame_seq; }
+    virtual CameraPlayerType getPlayerType() const override { return CAM_TYPE_SNAPSHOT; }
     uint32_t getLastFetchTime() const { return last_fetch_ms; }
-    uint32_t getFrameSeq() const { return frame_seq; }
 
     // 停止并清理缓冲
-    void stop();
+    virtual void stop() override;
 
 private:
     SnapshotState current_state;
