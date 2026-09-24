@@ -45,9 +45,13 @@ public:
 private:
     SnapshotState current_state;
     volatile bool new_frame_flag;
+    bool has_decoded_frame;
     uint8_t* frame_buffer;
     size_t buffer_size;
     size_t buffer_capacity;
+
+    M5Canvas canvas_preview;
+    M5Canvas canvas_fullscreen;
 
     char current_url[256];
     const PlaceLocation* active_place;
@@ -61,6 +65,9 @@ private:
     void startAsyncFetch(const char* url);
     static void fetchTaskStatic(void* param);
     void fetchTaskWorker();
+
+    // 帧预解码并缓存至 PSRAM Canvas（一次解码，60FPS 零卡顿重绘）
+    void decodeAndCacheFrame(M5GFX& display);
 };
 
 extern SnapshotPlayer snapshot_player;

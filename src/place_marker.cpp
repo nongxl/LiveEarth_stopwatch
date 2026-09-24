@@ -1150,18 +1150,26 @@ void PlaceMarkerManager::prevPlace() {
 // -------------------------------------------------------------
 // Phase 3 & Phase 4: 渲染所有正面可见 Marker 并执行动态呼吸光圈
 // -------------------------------------------------------------
+// -------------------------------------------------------------
+// Phase 3 & Phase 4: 渲染所有正面可见 Marker 并执行动态呼吸光圈
+// -------------------------------------------------------------
 void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& globe) {
-    // 呼吸动态扩散热度：3.0px ~ 7.5px
+    // 呼吸动态扩散热度：3.0px ~ 6.5px
     float pulse_sine = 0.5f + 0.5f * sinf(pulse_phase);
-    float pulse_radius = 3.0f + 4.0f * pulse_sine;
+    float pulse_radius = 3.0f + 3.5f * pulse_sine;
 
+    int selected_in_view = -1;
+    int16_t sel_sx = 0, sel_sy = 0;
+    float sel_depth = 0.0f;
+
+    // --- 第一遍：渲染所有未选中的微光星标（避免文字重叠，保持地球仪纯净视觉）---
     for (size_t i = 0; i < GLOBAL_PLACES_COUNT; i++) {
         const PlaceLocation& place = GLOBAL_PLACES[i];
 
         int16_t sx, sy;
         float depth;
 
-        // Phase 3: 球极坐标正交投影与背面遮挡剔除
+        // 球极坐标正交投影与背面遮挡剔除
         if (!globe.projectLatLng(place.latitude, place.longitude, sx, sy, depth)) {
             continue; // 背面遮挡或视野外，剔除
         }
@@ -1171,62 +1179,82 @@ void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& glob
             continue;
         }
 
-        bool is_selected = ((int)i == selected_idx);
+        if ((int)i == selected_idx) {
+            // 记录选中点，留到顶层第二遍绘制
+            selected_in_view = (int)i;
+            sel_sx = sx;
+            sel_sy = sy;
+            sel_depth = depth;
+            continue;
+        }
+
         uint16_t col = place.theme_color;
 
-        // 1. 动态发光呼吸外环 (Pulse Glow Ring)
-        if (is_selected) {
-            // 选中项拥有更醒目的双层脉冲光环
+        // 未选中点：根据正视深度呈现景深星标（不打印文字，彻底消除重叠）
+        if (depth > 0.45f) {
+            // 正对视野的点：微弱柔和呼吸光晕
             canvas.drawCircle(sx, sy, (int32_t)pulse_radius, col);
-            canvas.drawCircle(sx, sy, (int32_t)(pulse_radius + 2), 0xFFFF);
+            canvas.fillCircle(sx, sy, 2, col);
+            canvas.drawPixel(sx, sy, 0xFFFF); // 纯白高光微核心
         } else {
-            // 未选中项根据呼吸相位与视角深度绘制轻柔呼吸环
-            if (depth > 0.2f) {
-                canvas.drawCircle(sx, sy, (int32_t)pulse_radius, col);
-            }
+            // 边缘侧视点：自然淡化为 1px/2px 纯净星点，增强三维球体景深
+            canvas.fillCircle(sx, sy, 1, col);
         }
+    }
 
-        // 2. 中心发光核心 (Inner Core)
-        canvas.fillCircle(sx, sy, 2, col);
-        canvas.drawPixel(sx, sy, 0xFFFF); // 纯白高光微核心
+    // --- 第二遍：置顶渲染当前选中焦点的 HUD 准心与防遮挡胶囊名牌 ---
+    if (selected_in_view >= 0) {
+        const PlaceLocation& sel_place = GLOBAL_PLACES[selected_in_view];
+        uint16_t col = sel_place.theme_color;
 
-        // 3. 选中态 HUD 瞄准准心框 (Targeting Brackets)
-        if (is_selected) {
-            int16_t b_len = 3;
-            int16_t b_dist = (int16_t)(pulse_radius + 4);
+        // 1. 选中项醒目的双层脉冲光环
+        canvas.drawCircle(sel_sx, sel_sy, (int32_t)(pulse_radius + 1), col);
+        canvas.drawCircle(sel_sx, sel_sy, (int32_t)(pulse_radius + 3), 0xFFFF);
+        canvas.fillCircle(sel_sx, sel_sy, 3, col);
+        canvas.drawPixel(sel_sx, sel_sy, 0xFFFF);
 
-            // 左上角
-            canvas.drawLine(sx - b_dist, sy - b_dist, sx - b_dist + b_len, sy - b_dist, 0xFFFF);
-            canvas.drawLine(sx - b_dist, sy - b_dist, sx - b_dist, sy - b_dist + b_len, 0xFFFF);
-            // 右上角
-            canvas.drawLine(sx + b_dist, sy - b_dist, sx + b_dist - b_len, sy - b_dist, 0xFFFF);
-            canvas.drawLine(sx + b_dist, sy - b_dist, sx + b_dist, sy - b_dist + b_len, 0xFFFF);
-            // 左下角
-            canvas.drawLine(sx - b_dist, sy + b_dist, sx - b_dist + b_len, sy + b_dist, 0xFFFF);
-            canvas.drawLine(sx - b_dist, sy + b_dist, sx - b_dist, sy + b_dist - b_len, 0xFFFF);
-            // 右下角
-            canvas.drawLine(sx + b_dist, sy + b_dist, sx + b_dist - b_len, sy + b_dist, 0xFFFF);
-            canvas.drawLine(sx + b_dist, sy + b_dist, sx + b_dist, sy + b_dist - b_len, 0xFFFF);
+        // 2. 选中态 HUD 瞄准准心框 (Targeting Brackets)
+        int16_t b_len = 3;
+        int16_t b_dist = (int16_t)(pulse_radius + 5);
 
-            // 标注地点英文简称标签
-            canvas.setTextColor(0xFFFF);
-            canvas.setTextDatum(middle_left);
-            canvas.setTextSize(1);
-            canvas.drawString(place.name, sx + b_dist + 4, sy);
-        } else {
-            // 非选中状态下，若正视角度良好（depth > 0.65），显示半透明微字
-            if (depth > 0.65f) {
-                canvas.setTextColor(col);
-                canvas.setTextDatum(middle_left);
-                canvas.setTextSize(1);
-                canvas.drawString(place.name, sx + 6, sy);
-            }
-        }
+        // 左上角
+        canvas.drawLine(sel_sx - b_dist, sel_sy - b_dist, sel_sx - b_dist + b_len, sel_sy - b_dist, 0xFFFF);
+        canvas.drawLine(sel_sx - b_dist, sel_sy - b_dist, sel_sx - b_dist, sel_sy - b_dist + b_len, 0xFFFF);
+        // 右上角
+        canvas.drawLine(sel_sx + b_dist, sel_sy - b_dist, sel_sx + b_dist - b_len, sel_sy - b_dist, 0xFFFF);
+        canvas.drawLine(sel_sx + b_dist, sel_sy - b_dist, sel_sx + b_dist, sel_sy - b_dist + b_len, 0xFFFF);
+        // 左下角
+        canvas.drawLine(sel_sx - b_dist, sel_sy + b_dist, sel_sx - b_dist + b_len, sel_sy + b_dist, 0xFFFF);
+        canvas.drawLine(sel_sx - b_dist, sel_sy + b_dist, sel_sx - b_dist, sel_sy + b_dist - b_len, 0xFFFF);
+        // 右下角
+        canvas.drawLine(sel_sx + b_dist, sel_sy + b_dist, sel_sx + b_dist - b_len, sel_sy + b_dist, 0xFFFF);
+        canvas.drawLine(sel_sx + b_dist, sel_sy + b_dist, sel_sx + b_dist, sel_sy + b_dist - b_len, 0xFFFF);
+
+        // 3. 科技防遮挡圆角胶囊名牌 (Smart Pill Badge)
+        canvas.setTextDatum(middle_left);
+        canvas.setTextSize(1);
+        int text_w = canvas.textWidth(sel_place.name);
+        int pill_w = text_w + 14;
+        int pill_h = 16;
+
+        // 智能边界避让：若右侧超出画布则翻转至左侧
+        bool flip_left = (sel_sx + b_dist + 4 + pill_w > GLOBE_CANVAS_WIDTH - 6);
+        int16_t pill_x = flip_left ? (sel_sx - b_dist - 4 - pill_w) : (sel_sx + b_dist + 4);
+        int16_t pill_y = sel_sy - (pill_h / 2);
+
+        // 深黑半透明底板 + 霓虹主题色边框
+        canvas.fillRoundRect(pill_x, pill_y, pill_w, pill_h, 3, 0x0841); // 深沉科技蓝黑
+        canvas.drawRoundRect(pill_x, pill_y, pill_w, pill_h, 3, col);    // 主题色微光边框
+
+        // 胶囊内居中文字
+        canvas.setTextColor(0xFFFF);
+        canvas.setTextDatum(middle_center);
+        canvas.drawString(sel_place.name, pill_x + (pill_w / 2), sel_sy);
     }
 }
 
 // -------------------------------------------------------------
-// 触控命中检测 (Hit Test)
+// 触控命中检测 (Hit Test) - 磁吸式就近加权判定
 // -------------------------------------------------------------
 int PlaceMarkerManager::hitTest(int16_t screen_touch_x, int16_t screen_touch_y, const GlobeEngine& globe, float max_radius_px) {
     // 转换为 Canvas 局部坐标系
@@ -1238,7 +1266,11 @@ int PlaceMarkerManager::hitTest(int16_t screen_touch_x, int16_t screen_touch_y, 
         return -1;
     }
 
-    float best_dist_sq = max_radius_px * max_radius_px;
+    // 扩大手指点击感应半径至 38px
+    float effective_radius = (max_radius_px < 38.0f) ? 38.0f : max_radius_px;
+    float max_dist_sq = effective_radius * effective_radius;
+
+    float best_score = 999999.0f;
     int hit_index = -1;
 
     for (size_t i = 0; i < GLOBAL_PLACES_COUNT; i++) {
@@ -1259,9 +1291,13 @@ int PlaceMarkerManager::hitTest(int16_t screen_touch_x, int16_t screen_touch_y, 
         float dy = (float)(local_y - sy);
         float dist_sq = dx * dx + dy * dy;
 
-        if (dist_sq < best_dist_sq) {
-            best_dist_sq = dist_sq;
-            hit_index = (int)i;
+        if (dist_sq <= max_dist_sq) {
+            // 空间深度磁吸算法：正面(depth接近1.0)得分优于边缘(depth较小)，避免边缘歪点抢先吸附
+            float score = dist_sq / (depth * depth);
+            if (score < best_score) {
+                best_score = score;
+                hit_index = (int)i;
+            }
         }
     }
 

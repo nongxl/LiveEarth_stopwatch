@@ -111,10 +111,7 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         last_rendered_place = place;
     }
 
-    // 动态帧元素：时间码、微波扫描线与跳动音频电平
-    int cur_y = VIDEO_Y + (int)scan_pos;
-    display.drawLine(VIDEO_X + 2, cur_y, VIDEO_X + VIDEO_W - 3, cur_y, 0x2475);
-
+    // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
     // 视频内部右上角状态码
     char stat_buf[32];
     snprintf(stat_buf, sizeof(stat_buf), "1080P 30FPS | 4.6Mbps");

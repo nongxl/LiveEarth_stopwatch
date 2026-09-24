@@ -151,10 +151,6 @@ void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocatio
     display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1 - b_len, PREVIEW_Y + PREVIEW_H - 1, 0xFFFF);
     display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1 - b_len, 0xFFFF);
 
-    // 动态扫描线 (Scanline)
-    int sy = PREVIEW_Y + (int)scanline_y;
-    display.drawLine(PREVIEW_X + 2, sy, PREVIEW_X + PREVIEW_W - 3, sy, 0x2475);
-
     // 左上角: 实时流角标
     display.setTextDatum(top_left);
     display.setTextSize(1);
