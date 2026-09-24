@@ -34,10 +34,12 @@ public:
     // 动态调整视口中心与基准半径 (用于下移避让)
     void setCenterAndRadius(int16_t center_x, int16_t center_y, float radius);
     // 平滑飞行飞掠动画接口 (自然平滑旋转并聚焦)
-    void flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode = false, uint32_t duration_ms = 650);
+    void flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode = false, uint32_t duration_ms = 650, float target_zoom = 1.0f);
     bool isAnimating() const { return anim_active; }
 
     float getRadius() const { return base_radius * current_zoom; }
+    float getZoom() const { return current_zoom; }
+    void setZoom(float z) { current_zoom = (z < 0.65f) ? 0.65f : ((z > 2.2f) ? 2.2f : z); }
     float getYaw() const { return current_yaw; }
     float getPitch() const { return current_pitch; }
     float getSubsolarLat() const { return sun_pos.subsolar_lat; }
@@ -62,6 +64,7 @@ private:
     float anim_start_pitch, anim_target_pitch;
     float anim_start_yaw, anim_target_yaw;
     float anim_start_radius, anim_target_radius;
+    float anim_start_zoom, anim_target_zoom;
     int16_t anim_start_cy, anim_target_cy;
 
     SunPosition sun_pos;

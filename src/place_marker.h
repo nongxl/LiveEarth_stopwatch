@@ -61,3 +61,6 @@ private:
     uint32_t last_anim_ms;
 };
 
+extern const PlaceLocation GLOBAL_PLACES[];
+extern const size_t GLOBAL_PLACES_COUNT;
+

@@ -48,7 +48,7 @@ void GlobeEngine::setCenterAndRadius(int16_t center_x, int16_t center_y, float r
     anim_active = false;
 }
 
-void GlobeEngine::flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode, uint32_t duration_ms) {
+void GlobeEngine::flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mode, uint32_t duration_ms, float target_zoom) {
     // 目标纬度俯仰角：
     // 在全屏居中模式下，目标地点对准地球正中心；
     // 在下移避让模式下，地球整体俯仰向前倾斜 35°，使得目标地点自然提升并稳稳停留在下方拱形地球仪的穹顶黄金焦点！
@@ -74,6 +74,7 @@ void GlobeEngine::flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mo
     if (duration_ms == 0) {
         current_pitch = t_pitch;
         current_yaw = t_yaw;
+        current_zoom = target_zoom;
         if (is_avoidance_mode) {
             base_radius = 210.0f;
             cy = 220;
@@ -95,6 +96,9 @@ void GlobeEngine::flyToLatLng(float lat_deg, float lon_deg, bool is_avoidance_mo
 
     anim_start_radius = base_radius;
     anim_target_radius = is_avoidance_mode ? 210.0f : GLOBE_DEFAULT_RADIUS;
+
+    anim_start_zoom = current_zoom;
+    anim_target_zoom = target_zoom;
 
     anim_start_cy = cy;
     anim_target_cy = is_avoidance_mode ? 220 : (GLOBE_CANVAS_HEIGHT / 2);
@@ -140,8 +144,8 @@ void GlobeEngine::handleDrag(float delta_x, float delta_y) {
 
 void GlobeEngine::handlePinch(float zoom_delta) {
     current_zoom += zoom_delta;
-    if (current_zoom < 0.75f) current_zoom = 0.75f;
-    if (current_zoom > 1.45f) current_zoom = 1.45f;
+    if (current_zoom < 0.65f) current_zoom = 0.65f;
+    if (current_zoom > 2.20f) current_zoom = 2.20f;
 }
 
 void GlobeEngine::resetOrientation(float target_lat_deg, float target_lon_deg) {
@@ -162,6 +166,7 @@ void GlobeEngine::update(float dt_sec) {
             current_pitch = anim_target_pitch;
             current_yaw = anim_target_yaw;
             base_radius = anim_target_radius;
+            current_zoom = anim_target_zoom;
             cy = anim_target_cy;
             vel_pitch = 0.0f;
             vel_yaw = 0.0f;
@@ -172,6 +177,7 @@ void GlobeEngine::update(float dt_sec) {
             current_pitch = anim_start_pitch + (anim_target_pitch - anim_start_pitch) * ease;
             current_yaw = anim_start_yaw + (anim_target_yaw - anim_start_yaw) * ease;
             base_radius = anim_start_radius + (anim_target_radius - anim_start_radius) * ease;
+            current_zoom = anim_start_zoom + (anim_target_zoom - anim_start_zoom) * ease;
             cy = anim_start_cy + (int16_t)((anim_target_cy - anim_start_cy) * ease);
         }
 

@@ -7,7 +7,7 @@
 // -------------------------------------------------------------
 // 全球代表性地标与公开相机点位数据库 (覆盖各大洲、火山、名山、都会)
 // -------------------------------------------------------------
-static const PlaceLocation GLOBAL_PLACES[] = {
+extern const PlaceLocation GLOBAL_PLACES[] = {
     {
         "jp-mt-fuji",
         "Mount Fuji",
@@ -1090,7 +1090,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
     }
 };
 
-static const size_t GLOBAL_PLACES_COUNT = sizeof(GLOBAL_PLACES) / sizeof(GLOBAL_PLACES[0]);
+extern const size_t GLOBAL_PLACES_COUNT = sizeof(GLOBAL_PLACES) / sizeof(GLOBAL_PLACES[0]);
 
 // -------------------------------------------------------------
 // PlaceMarkerManager Implementation

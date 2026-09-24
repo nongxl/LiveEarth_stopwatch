@@ -10,6 +10,7 @@
 #include "video_player_view.h"
 #include "network_manager.h"
 #include "snapshot_player.h"
+#include "camera_drawer_view.h"
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
@@ -38,6 +39,10 @@ struct TouchGestureState {
     uint32_t touch_start_ms = 0;
     uint32_t last_tap_ms = 0;
     int last_hit_idx = -1;
+
+    // 双指多点触控实时缩放
+    bool is_pinching = false;
+    float last_pinch_dist = 0.0f;
 } touch_state;
 
 struct PerformanceMetrics {
@@ -181,6 +186,7 @@ void setup() {
     video_player.init();
     snapshot_player.init();
     network_mgr.init();
+    camera_drawer.init();
 
     print_system_diagnostics();
 
@@ -306,42 +312,93 @@ void loop() {
         }
     }
 
-    // 3. 触控手势处理 (根据状态机分流)
-    auto detail = M5.Touch.getDetail();
-    if (detail.isPressed()) {
+    // 3. 触控手势处理 (双指缩放 + 侧滑抽屉 + 旋转拖拽 + 点击联动)
+    uint8_t touch_count = M5.Touch.getCount();
+    if (touch_count >= 2) {
+        // --- 双指多点触控：实时 Pinch-to-Zoom 平滑缩放地球仪 ---
+        auto d0 = M5.Touch.getDetail(0);
+        auto d1 = M5.Touch.getDetail(1);
+        float pdx = (float)(d0.x - d1.x);
+        float pdy = (float)(d0.y - d1.y);
+        float pdist = sqrtf(pdx * pdx + pdy * pdy);
+
+        if (!touch_state.is_pinching) {
+            touch_state.is_pinching = true;
+            touch_state.last_pinch_dist = pdist;
+            touch_state.is_dragging = false;
+        } else {
+            float delta_dist = pdist - touch_state.last_pinch_dist;
+            if (fabsf(delta_dist) > 0.8f) {
+                globe.handlePinch(delta_dist * 0.0055f);
+                touch_state.last_pinch_dist = pdist;
+            }
+        }
+        touch_state.was_pressed = false; // 双指缩放时抑制单指点击
+    } else {
+        if (touch_state.is_pinching) {
+            touch_state.is_pinching = false;
+        }
+
+        auto detail = M5.Touch.getDetail(0);
         int16_t cur_x = detail.x;
         int16_t cur_y = detail.y;
 
-        if (!touch_state.was_pressed) {
-            touch_state.was_pressed = true;
-            touch_state.is_dragging = false;
-            touch_state.start_x = cur_x;
-            touch_state.start_y = cur_y;
-            touch_state.last_x = cur_x;
-            touch_state.last_y = cur_y;
-            touch_state.touch_start_ms = now;
-        } else {
-            float dx = (float)(cur_x - touch_state.last_x);
-            float dy = (float)(cur_y - touch_state.last_y);
-            float total_dx = (float)(cur_x - touch_state.start_x);
-            float total_dy = (float)(cur_y - touch_state.start_y);
-
-            // 在地球仪模式或预览模式下的下半区地球仪拖拽
-            if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
-                if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
-                    touch_state.is_dragging = true;
+        // 在普通地球仪全屏模式下，优先交由摄像头抽屉组件处理侧滑手势或点击
+        if (current_view_state == VIEW_GLOBE) {
+            int drawer_hit = camera_drawer.handleTouch(detail.isPressed(), cur_x, cur_y, now);
+            if (drawer_hit >= 0) {
+                // 用户在抽屉列表中选定了一个地点！
+                place_mgr.setSelectedIndex(drawer_hit);
+                const PlaceLocation* p = place_mgr.getSelectedPlace();
+                if (p) {
+                    // 飞越旋转至所选经纬度，并平滑放大成焦点 (target_zoom = 1.35f)！
+                    globe.flyToLatLng(p->latitude, p->longitude, false, 750, 1.35f);
+                    snapshot_player.loadPlace(p);
+                    Serial.printf("[Drawer Selected] Focus & Zoom: %s (%s)\n", p->name, p->country);
                 }
-                if (touch_state.is_dragging) {
-                    globe.handleDrag(dx, dy);
-                }
+                touch_state.was_pressed = false;
+                touch_state.is_dragging = false;
             }
 
-            touch_state.last_x = cur_x;
-            touch_state.last_y = cur_y;
+            // 若抽屉正在展示或过渡，不响应地球仪底层的单指旋转拖拽
+            if (camera_drawer.isVisible()) {
+                touch_state.was_pressed = false;
+                touch_state.is_dragging = false;
+                goto skip_normal_touch;
+            }
         }
-    } else {
-        if (touch_state.was_pressed) {
-            uint32_t press_duration = now - touch_state.touch_start_ms;
+
+        if (detail.isPressed()) {
+            if (!touch_state.was_pressed) {
+                touch_state.was_pressed = true;
+                touch_state.is_dragging = false;
+                touch_state.start_x = cur_x;
+                touch_state.start_y = cur_y;
+                touch_state.last_x = cur_x;
+                touch_state.last_y = cur_y;
+                touch_state.touch_start_ms = now;
+            } else {
+                float dx = (float)(cur_x - touch_state.last_x);
+                float dy = (float)(cur_y - touch_state.last_y);
+                float total_dx = (float)(cur_x - touch_state.start_x);
+                float total_dy = (float)(cur_y - touch_state.start_y);
+
+                // 在地球仪模式或预览模式下的下半区地球仪拖拽
+                if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
+                    if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
+                        touch_state.is_dragging = true;
+                    }
+                    if (touch_state.is_dragging) {
+                        globe.handleDrag(dx, dy);
+                    }
+                }
+
+                touch_state.last_x = cur_x;
+                touch_state.last_y = cur_y;
+            }
+        } else {
+            if (touch_state.was_pressed) {
+                uint32_t press_duration = now - touch_state.touch_start_ms;
             float total_dx = (float)(touch_state.last_x - touch_state.start_x);
             float total_dy = (float)(touch_state.last_y - touch_state.start_y);
             float move_dist_sq = total_dx * total_dx + total_dy * total_dy;
@@ -412,6 +469,8 @@ void loop() {
             touch_state.last_y = -1;
         }
     }
+    skip_normal_touch: ;
+    }
 
     // 4. 视图分支渲染管线
     if (current_view_state == VIEW_GLOBE) {
@@ -440,6 +499,15 @@ void loop() {
             perf.last_hud_update = now;
             update_dynamic_hud();
         }
+
+        // 渲染屏幕左侧滑出式摄像头抽屉列表或左边缘呼出把柄
+        camera_drawer.update(now);
+        if (camera_drawer.isVisible()) {
+            camera_drawer.render(M5.Display, place_mgr);
+        } else {
+            camera_drawer.renderEdgeHandle(M5.Display);
+        }
+
         M5.Display.endWrite();
 
     } else if (current_view_state == VIEW_PLACE_PREVIEW) {
