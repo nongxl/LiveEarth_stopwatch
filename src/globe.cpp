@@ -17,7 +17,7 @@
 #define DAMPING 0.92f
 
 GlobeEngine::GlobeEngine()
-    : cx(GLOBE_CANVAS_CENTER), cy(GLOBE_CANVAS_CENTER),
+    : cx(SCREEN_CENTER_X), cy(GLOBE_CANVAS_HEIGHT / 2),
       base_radius(GLOBE_DEFAULT_RADIUS), current_zoom(1.0f),
       current_pitch(28.0f * DEG_TO_RAD), current_yaw(115.0f * DEG_TO_RAD),
       vel_pitch(0.0f), vel_yaw(0.001f),

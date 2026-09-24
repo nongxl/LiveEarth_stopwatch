@@ -340,8 +340,8 @@ int PlaceMarkerManager::hitTest(int16_t screen_touch_x, int16_t screen_touch_y, 
     int16_t local_x = screen_touch_x - GLOBE_CANVAS_OFFSET_X;
     int16_t local_y = screen_touch_y - GLOBE_CANVAS_OFFSET_Y;
 
-    // 检查是否在视口范围内
-    if (local_x < 0 || local_x >= GLOBE_CANVAS_SIZE || local_y < 0 || local_y >= GLOBE_CANVAS_SIZE) {
+    // 检查是否在视口范围内 (466x320 全宽画布)
+    if (local_x < 0 || local_x >= GLOBE_CANVAS_WIDTH || local_y < 0 || local_y >= GLOBE_CANVAS_HEIGHT) {
         return -1;
     }
 

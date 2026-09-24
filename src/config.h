@@ -15,11 +15,11 @@
 #define SCREEN_RADIUS        233
 #define SAFE_UI_RADIUS       215                  // 圆形安全可视边界内径
 
-// Globe Engine Viewport Geometry (320x320 Focused Canvas)
-#define GLOBE_CANVAS_SIZE    320
-#define GLOBE_CANVAS_OFFSET_X ((SCREEN_WIDTH - GLOBE_CANVAS_SIZE) / 2)  // 73
-#define GLOBE_CANVAS_OFFSET_Y ((SCREEN_HEIGHT - GLOBE_CANVAS_SIZE) / 2) // 73
-#define GLOBE_CANVAS_CENTER  (GLOBE_CANVAS_SIZE / 2)                   // 160
+// Globe Engine Viewport Geometry (466x320 Full-Width Precision Canvas)
+#define GLOBE_CANVAS_WIDTH   466
+#define GLOBE_CANVAS_HEIGHT  320
+#define GLOBE_CANVAS_OFFSET_X 0
+#define GLOBE_CANVAS_OFFSET_Y 73
 #define GLOBE_DEFAULT_RADIUS 152
 
 // Color Palette (Dark Mode Aesthetic)

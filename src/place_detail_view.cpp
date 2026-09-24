@@ -183,10 +183,8 @@ void PlaceDetailView::render(M5GFX& display, const PlaceLocation* place) {
     if (!place) return;
 
     if (needs_full_redraw || place != last_rendered_place) {
-        // 清理上半区和左右侧区域，保留下半区给大尺度避让的地球仪
+        // 清理上半区，下半区完全交给全宽 466 的避让地球仪画布与自然圆屏边缘
         display.fillRect(0, 0, SCREEN_WIDTH, 260, COLOR_BG);
-        display.fillRect(0, 260, 73, 206, COLOR_BG);
-        display.fillRect(393, 260, 73, 206, COLOR_BG);
 
         drawTopInfo(display, place);
         drawLeftPanel(display, place);

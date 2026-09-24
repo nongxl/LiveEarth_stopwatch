@@ -62,7 +62,7 @@ static void print_system_diagnostics() {
     Serial.println("  LiveEarth High-Performance Viewport Engine");
     Serial.println("  Device: M5Stack Stopwatch (CO5300 AMOLED 466x466)");
     Serial.printf("  Canvas Size: %dx%d (Offset: %d, %d)\n", 
-                  GLOBE_CANVAS_SIZE, GLOBE_CANVAS_SIZE, 
+                  GLOBE_CANVAS_WIDTH, GLOBE_CANVAS_HEIGHT, 
                   GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
     Serial.println("==================================================");
 
@@ -187,17 +187,17 @@ void setup() {
 
     draw_static_hud_markers();
 
-    // 在 PSRAM 中分配精简 320x320 视口画布 (节约 53% 显存与总线搬运开销)
+    // 在 PSRAM 中分配 466x320 全宽视口画布 (彻底消除左右两侧垂直切线)
     canvas.setColorDepth(16);
     canvas.setPsram(true);
-    if (!canvas.createSprite(GLOBE_CANVAS_SIZE, GLOBE_CANVAS_SIZE)) {
-        Serial.println("[ERROR] Failed to allocate 320x320 Canvas in PSRAM!");
+    if (!canvas.createSprite(GLOBE_CANVAS_WIDTH, GLOBE_CANVAS_HEIGHT)) {
+        Serial.println("[ERROR] Failed to allocate 466x320 Canvas in PSRAM!");
     } else {
-        Serial.println("[OK] 320x320 High-Performance Canvas created in PSRAM.");
+        Serial.println("[OK] 466x320 Full-Width High-Performance Canvas created in PSRAM.");
     }
 
-    // 初始化 3D 地球引擎 (以 320x320 画布为中心 160, 160)
-    globe.init(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, GLOBE_DEFAULT_RADIUS);
+    // 初始化 3D 地球引擎 (以 466x320 画布为中心 233, 160)
+    globe.init(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
 
     // 计算初次太阳直射点
     SunPosition init_sun = sun_calc.calculate(simulated_utc_time);
@@ -216,8 +216,8 @@ static void transition_to_view(AppViewState new_state) {
     if (current_view_state == new_state) return;
 
     if (new_state == VIEW_GLOBE) {
-        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 160, 160
-        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, GLOBE_DEFAULT_RADIUS);
+        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 233, 160
+        globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
         current_view_state = VIEW_GLOBE;
         M5.Display.fillScreen(COLOR_BG);
         draw_static_hud_markers();
@@ -229,12 +229,12 @@ static void transition_to_view(AppViewState new_state) {
         if (p) {
             globe.focusLatLng(p->latitude, p->longitude);
         }
-        // 地球仪基准半径放大至 210px，内部中心下偏至 (160, 210)
-        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, 210, 210.0f);
+        // 地球仪基准半径放大至 210px，内部中心设在 (233, 220)
+        globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, 220, 210.0f);
         current_view_state = VIEW_PLACE_PREVIEW;
         M5.Display.fillScreen(COLOR_BG);
         preview_view.requestRedraw();
-        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Globe Avoidance Downward & Enlarged + Clear Large-Text UI)");
+        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Full-Width 466 Canvas without Edge Clipping)");
     } else if (new_state == VIEW_VIDEO_FULL) {
         // 进入对角线466黄金内接放大播放模式
         current_view_state = VIEW_VIDEO_FULL;
@@ -433,12 +433,12 @@ void loop() {
         // 1. 渲染上、左、右多维信息与中央中等视频窗口
         preview_view.render(M5.Display, place_mgr.getSelectedPlace());
 
-        // 2. 渲染下方大幅避让并放大的 3D 地球仪 (推送到 Y: 280，球心在 Y: 490，大半径 R: 210)
-        // 目标地点作为锚点放大居中，地平线大弧形在 Y: 280 隆起，为上部留出充足空间
+        // 2. 渲染下方全宽 466 的大幅避让与放大的 3D 地球仪 (推送到 X: 0, Y: 260)
+        // 关键：宽度 466 完全铺满整个表盘水平宽度，球体左右两边自然隐入手表圆形表圈，彻底消灭任何垂直切线！
         canvas.fillScreen(COLOR_BG);
         globe.render(canvas);
         place_mgr.renderMarkers(canvas, globe);
-        canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, 280);
+        canvas.pushSprite(0, 260);
 
         M5.Display.endWrite();
 
