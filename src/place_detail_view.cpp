@@ -179,19 +179,30 @@ void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocatio
         if (snapshot_player.hasValidFrame()) {
             display.setTextColor(0x07E0, 0x0000);
             display.drawString("* LIVE SNAPSHOT", PREVIEW_X + 8, PREVIEW_Y + 7);
+            if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+                display.setTextDatum(top_right);
+                display.setTextColor(0x07FF, 0x0000);
+                display.drawString("[SYNCING]", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+            } else {
+                display.setTextDatum(top_right);
+                display.setTextColor(network_mgr.isConnected() ? 0x07E0 : 0x7BEF, 0x0000);
+                display.drawString("ONLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+            }
         } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
             display.setTextColor(0x07FF, 0x0821);
             display.drawString("* LOADING...", PREVIEW_X + 8, PREVIEW_Y + 7);
+            display.setTextDatum(top_right);
+            display.setTextColor(0x7BEF, 0x0821);
+            display.drawString("FETCHING", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
         } else {
             display.setTextColor(0xFDC0, 0x0821);
             display.drawString("* CONNECTING...", PREVIEW_X + 8, PREVIEW_Y + 7);
+            display.setTextDatum(top_right);
+            display.setTextColor(0x7BEF, 0x0821);
+            display.drawString("STANDBY", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
         }
 
-        display.setTextDatum(top_right);
-        display.setTextColor(network_mgr.isConnected() ? 0x07E0 : 0x7BEF, 0x0000);
-        display.drawString(network_mgr.isConnected() ? "ONLINE" : "OFFLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
-
-        if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+        if (!snapshot_player.hasValidFrame() && snapshot_player.getState() == SNAP_STATE_FETCHING) {
             display.setTextDatum(middle_center);
             display.setTextSize(1);
             display.setTextColor(0x07FF, 0x0821);

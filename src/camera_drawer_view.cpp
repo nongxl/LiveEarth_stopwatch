@@ -133,13 +133,13 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
     display.setTextDatum(middle_center);
     display.setTextSize(1);
     display.setTextColor(COLOR_ACCENT_CYAN, 0x0821);
-    display.drawString("* CAMERA DIRECTORY *", panel_x + DRAWER_WIDTH / 2, 38);
+    display.drawString("* CAMERA DIRECTORY *", panel_x + DRAWER_WIDTH / 2, 34);
 
-    display.setTextSize(2);
-    display.setTextColor(0xFFFF, 0x0821);
-    char count_buf[32];
-    snprintf(count_buf, sizeof(count_buf), "%u LOCATIONS", (uint32_t)GLOBAL_PLACES_COUNT);
-    display.drawString(count_buf, panel_x + DRAWER_WIDTH / 2, 58);
+    display.setTextColor(0x07E0, 0x0821);
+    display.drawString("* 3 VERIFIED LIVE BROADCASTS *", panel_x + DRAWER_WIDTH / 2, 50);
+
+    display.setTextColor(0xA554, 0x0821);
+    display.drawString("100 GLOBAL LOCATIONS", panel_x + DRAWER_WIDTH / 2, 66);
 
     display.drawFastHLine(panel_x + 16, 76, DRAWER_WIDTH - 32, 0x2354);
 
@@ -157,7 +157,7 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
         // 选中项绘制发光胶囊底板
         if (is_sel) {
             display.fillRoundRect(panel_x + 12, item_y + 2, DRAWER_WIDTH - 24, ITEM_HEIGHT - 4, 4, 0x10A2);
-            display.drawRoundRect(panel_x + 12, item_y + 2, DRAWER_WIDTH - 24, ITEM_HEIGHT - 4, 4, place.theme_color);
+            display.drawRoundRect(panel_x + 12, item_y + 2, DRAWER_WIDTH - 24, ITEM_HEIGHT - 4, 4, place.is_online ? 0x07E0 : place.theme_color);
         } else {
             // 未选中项隔行微弱底色或分割线
             display.drawFastHLine(panel_x + 20, item_y + ITEM_HEIGHT - 1, DRAWER_WIDTH - 40, 0x1082);
@@ -172,7 +172,7 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
         display.drawString(num_buf, panel_x + 20, item_y + ITEM_HEIGHT / 2);
 
         // 主题色微光星核
-        display.fillCircle(panel_x + 46, item_y + ITEM_HEIGHT / 2, is_sel ? 4 : 3, place.theme_color);
+        display.fillCircle(panel_x + 46, item_y + ITEM_HEIGHT / 2, is_sel ? 4 : 3, place.is_online ? 0x07E0 : place.theme_color);
         if (is_sel) {
             display.drawPixel(panel_x + 46, item_y + ITEM_HEIGHT / 2, 0xFFFF);
         }
@@ -186,14 +186,17 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
         // 副标题：国家与摄像头名
         char sub_buf[64];
         snprintf(sub_buf, sizeof(sub_buf), "%s | %s", place.country, place.cam_name);
-        display.setTextColor(is_sel ? place.theme_color : 0x8410, is_sel ? 0x10A2 : 0x0821);
+        display.setTextColor(is_sel ? (place.is_online ? 0x07E0 : place.theme_color) : 0x8410, is_sel ? 0x10A2 : 0x0821);
         display.drawString(sub_buf, panel_x + 60, item_y + 26);
 
-        // 选中标记
+        // 状态徽标与选中标记
+        display.setTextDatum(middle_right);
         if (is_sel) {
-            display.setTextDatum(middle_right);
-            display.setTextColor(COLOR_ACCENT_CYAN, 0x10A2);
-            display.drawString("FOCUS >", panel_x + DRAWER_WIDTH - 20, item_y + ITEM_HEIGHT / 2);
+            display.setTextColor(place.is_online ? 0x07E0 : COLOR_ACCENT_CYAN, 0x10A2);
+            display.drawString(place.is_online ? "LIVE >" : "FOCUS >", panel_x + DRAWER_WIDTH - 20, item_y + ITEM_HEIGHT / 2);
+        } else if (place.is_online) {
+            display.setTextColor(0x07E0, 0x0821);
+            display.drawString("* LIVE", panel_x + DRAWER_WIDTH - 20, item_y + ITEM_HEIGHT / 2);
         }
     }
 

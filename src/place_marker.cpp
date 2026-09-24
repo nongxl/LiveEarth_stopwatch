@@ -26,7 +26,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         "Fujigoko TV Consortium",
         "",
         1,
-        true
+        false
     },
     {
         "cn-great-wall",
@@ -84,7 +84,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         "Tsim Sha Tsui Promenade & Symphony of Lights skyline",
         "Victoria Harbour from Victoria Peak",
         "Hong Kong Observatory (HKO)",
-        "",
+        "https://www.hko.gov.hk/wxinfo/aws/hko_mica/vpb/latest_VPB.jpg",
         1,
         true
     },
@@ -1066,7 +1066,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         "Times Square Alliance",
         "",
         1,
-        true
+        false
     },
     {
         "us-golden-gate",
@@ -1906,7 +1906,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         "USGS Hawaiian Volcano Observatory",
         "https://volcanoes.usgs.gov/observatories/hvo/cams/MLcam/images/M.jpg",
         1,
-        false
+        true
     },
     {
         "au-twelve-apostles",
@@ -2110,9 +2110,21 @@ void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& glob
 
         uint16_t col = place.theme_color;
 
-        // 未选中点：根据正视深度呈现景深星标（不打印文字，彻底消除重叠）
-        if (depth > 0.45f) {
-            // 正对视野的点：微弱柔和呼吸光晕
+        if (place.is_online) {
+            // 实时在线摄像头：宇宙级醒目电光绿雷达波纹与发光卫星核心
+            int32_t live_r = (int32_t)(pulse_radius + 2.0f);
+            canvas.drawCircle(sx, sy, live_r, 0x07E0);
+            canvas.drawCircle(sx, sy, live_r + 2, 0x03E0);
+            canvas.fillCircle(sx, sy, 3, 0x07E0);
+            canvas.drawPixel(sx, sy, 0xFFFF);
+            if (depth > 0.40f) {
+                canvas.setTextDatum(middle_left);
+                canvas.setTextSize(1);
+                canvas.setTextColor(0x07E0);
+                canvas.drawString("LIVE", sx + live_r + 4, sy);
+            }
+        } else if (depth > 0.45f) {
+            // 正对视野的普通地标：微弱柔和呼吸光晕
             canvas.drawCircle(sx, sy, (int32_t)pulse_radius, col);
             canvas.fillCircle(sx, sy, 2, col);
             canvas.drawPixel(sx, sy, 0xFFFF); // 纯白高光微核心
@@ -2125,7 +2137,7 @@ void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& glob
     // --- 第二遍：置顶渲染当前选中焦点的 HUD 准心与防遮挡胶囊名牌 ---
     if (selected_in_view >= 0) {
         const PlaceLocation& sel_place = GLOBAL_PLACES[selected_in_view];
-        uint16_t col = sel_place.theme_color;
+        uint16_t col = sel_place.is_online ? 0x07E0 : sel_place.theme_color;
 
         // 1. 选中项醒目的双层脉冲光环
         canvas.drawCircle(sel_sx, sel_sy, (int32_t)(pulse_radius + 1), col);
@@ -2153,7 +2165,7 @@ void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& glob
         // 3. 科技防遮挡圆角胶囊名牌 (Smart Pill Badge)
         canvas.setTextDatum(middle_left);
         canvas.setTextSize(1);
-        int text_w = canvas.textWidth(sel_place.name);
+        int text_w = canvas.textWidth(sel_place.name) + (sel_place.is_online ? 40 : 0);
         int pill_w = text_w + 14;
         int pill_h = 16;
 
@@ -2166,10 +2178,18 @@ void PlaceMarkerManager::renderMarkers(M5Canvas& canvas, const GlobeEngine& glob
         canvas.fillRoundRect(pill_x, pill_y, pill_w, pill_h, 3, 0x0841); // 深沉科技蓝黑
         canvas.drawRoundRect(pill_x, pill_y, pill_w, pill_h, 3, col);    // 主题色微光边框
 
-        // 胶囊内居中文字
-        canvas.setTextColor(0xFFFF);
-        canvas.setTextDatum(middle_center);
-        canvas.drawString(sel_place.name, pill_x + (pill_w / 2), sel_sy);
+        // 胶囊内文字与 LIVE 状态
+        if (sel_place.is_online) {
+            canvas.setTextDatum(middle_left);
+            canvas.setTextColor(0x07E0);
+            canvas.drawString("*LIVE", pill_x + 6, sel_sy);
+            canvas.setTextColor(0xFFFF);
+            canvas.drawString(sel_place.name, pill_x + 44, sel_sy);
+        } else {
+            canvas.setTextColor(0xFFFF);
+            canvas.setTextDatum(middle_center);
+            canvas.drawString(sel_place.name, pill_x + (pill_w / 2), sel_sy);
+        }
     }
 }
 

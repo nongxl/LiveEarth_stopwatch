@@ -147,7 +147,11 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
     // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
     if (has_stream) {
         char stat_buf[32];
-        snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
+        if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | SYNCING", (unsigned int)(snapshot_player.getFrameSeq()));
+        } else {
+            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
+        }
         display.setTextDatum(top_right);
         display.setTextColor(0x4EEB, 0x0821);
         display.drawString(stat_buf, VIDEO_X + VIDEO_W - 22, VIDEO_Y + 10);
