@@ -8,6 +8,8 @@
 #include "place_marker.h"
 #include "place_detail_view.h"
 #include "video_player_view.h"
+#include "network_manager.h"
+#include "snapshot_player.h"
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
@@ -173,10 +175,12 @@ void setup() {
     cfg.internal_rtc = true;
     M5.begin(cfg);
 
-    // 初始化地理地点管理器、预览视图与全屏播放器
+    // 初始化地理地点管理器、预览视图、全屏播放器与网络快照引擎
     place_mgr.init();
     preview_view.init();
     video_player.init();
+    snapshot_player.init();
+    network_mgr.init();
 
     print_system_diagnostics();
 
@@ -216,7 +220,8 @@ static void transition_to_view(AppViewState new_state) {
     if (current_view_state == new_state) return;
 
     if (new_state == VIEW_GLOBE) {
-        // 返回地球仪居中模式：恢复地球仪居中默认半径 152 与中心 (233, 160)
+        // 返回地球仪居中模式：停止快照拉取以节省功耗与带宽，恢复地球仪居中
+        snapshot_player.stop();
         const PlaceLocation* p = place_mgr.getSelectedPlace();
         if (p) {
             globe.flyToLatLng(p->latitude, p->longitude, false, 500);
@@ -229,20 +234,25 @@ static void transition_to_view(AppViewState new_state) {
         perf.last_hud_update = 0;
         Serial.println("[State] -> VIEW_GLOBE (Centered 3D Earth)");
     } else if (new_state == VIEW_PLACE_PREVIEW) {
-        // 进入预览模式：启动平滑自转飞掠动画，自然旋转并使所选地点成为下方避让地球仪的穹顶黄金焦点
+        // 进入预览模式：启动平滑自转飞掠动画，自然旋转并触发实时快照拉取
         const PlaceLocation* p = place_mgr.getSelectedPlace();
         if (p) {
             globe.flyToLatLng(p->latitude, p->longitude, true, 650);
+            snapshot_player.loadPlace(p);
         } else {
             globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, 220, 210.0f);
         }
         current_view_state = VIEW_PLACE_PREVIEW;
         M5.Display.fillScreen(COLOR_BG);
         preview_view.requestRedraw();
-        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Smooth Fly-to & Focal Positioning)");
+        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Smooth Fly-to & Real-time Snapshot Feed)");
     } else if (new_state == VIEW_VIDEO_FULL) {
         // 进入对角线466黄金内接放大播放模式
         current_view_state = VIEW_VIDEO_FULL;
+        const PlaceLocation* p = place_mgr.getSelectedPlace();
+        if (p) {
+            snapshot_player.loadPlace(p);
+        }
         video_player.requestRedraw();
         Serial.println("[State] -> VIEW_VIDEO_FULL (16:9 Max-Inscribed 406x228, Diagonal=466)");
     }
@@ -258,6 +268,10 @@ void loop() {
     float dt_sec = (now - perf.last_frame_time) * 0.001f;
     if (dt_sec > 0.1f) dt_sec = 0.1f;
     perf.last_frame_time = now;
+
+    // 网络状态机与快照轮询更新 (非阻塞后台维持)
+    network_mgr.update(now);
+    snapshot_player.update(now);
 
     // 1. 每 2 秒微调时间并更新太阳直射点 (后台持续解算)
     if (now - perf.last_sun_update >= 2000) {
@@ -369,7 +383,10 @@ void loop() {
                         place_mgr.prevPlace();
                     }
                     const PlaceLocation* np = place_mgr.getSelectedPlace();
-                    if (np) globe.flyToLatLng(np->latitude, np->longitude, true, 550);
+                    if (np) {
+                        globe.flyToLatLng(np->latitude, np->longitude, true, 550);
+                        snapshot_player.loadPlace(np);
+                    }
                     preview_view.requestRedraw();
                     Serial.printf("[Preview Swipe] Now at: %s\n", place_mgr.getSelectedPlace()->name);
                 } else if (press_duration < 350 && move_dist_sq < 64.0f) {

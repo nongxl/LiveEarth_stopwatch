@@ -22,6 +22,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Lake Kawaguchiko scenic reflection & crater peak",
         "Kawaguchiko Official Cam",
         "Fujigoko TV Consortium",
+        "http://www.fujigoko.tv/live/camera.cgi?n=3",
         1,
         true
     },
@@ -39,6 +40,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Halema'uma'u active vent & USGS scientific monitoring",
         "Halema'uma'u Crater Live",
         "USGS Volcano Observatory",
+        "https://volcanoes.usgs.gov/vsc/images/kilauea/current.jpg",
         1,
         true
     },
@@ -56,6 +58,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Broadway theater district & iconic pedestrian plazas",
         "Broadway 46th St View",
         "EarthCam Times Square",
+        "https://static.earthcam.com/cams/newyork/timessquare/ts_preview.jpg",
         1,
         true
     },
@@ -73,6 +76,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Oriental Pearl Tower & Lujiazui skyscraper cluster",
         "Huangpu River Skyline",
         "Shanghai Municipal Tourism",
+        "https://images.unsplash.com/photo-1548919973-5cef591cdbc9?w=400&q=80",
         1,
         true
     },
@@ -90,6 +94,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Seine River panoramic overlook & evening golden beacon",
         "Trocadero Panoramic Cam",
         "Paris Tourism Authority",
+        "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?w=400&q=80",
         1,
         true
     },
@@ -107,6 +112,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Zero Meridian reference laser & GMT historic chronometers",
         "Meridian Line Courtyard",
         "Royal Museums Greenwich",
+        "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?w=400&q=80",
         1,
         true
     },
@@ -124,6 +130,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Harbour Bridge vista & UNESCO architectural wonder",
         "Harbour Esplanade Live",
         "Sydney Port Authority",
+        "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80",
         1,
         true
     },
@@ -141,6 +148,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Great Pyramid of Khufu & enigmatic Sphinx monument",
         "Giza Plateau Heritage View",
         "Ministry of Tourism Egypt",
+        "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?w=400&q=80",
         1,
         true
     },
@@ -158,6 +166,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Sugarloaf Mountain vista & Copacabana coastal panorama",
         "Corcovado Summit Cam",
         "Rio Destination Tourism",
+        "https://images.unsplash.com/photo-1516306580123-e6e52b1b7b5f?w=400&q=80",
         1,
         true
     },
@@ -175,6 +184,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Hallgrimskirkja spire & seasonal Aurora Borealis skies",
         "Reykjavik Old Harbour Live",
         "Icelandic Met Office",
+        "https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=400&q=80",
         1,
         true
     },
@@ -192,6 +202,7 @@ static const PlaceLocation GLOBAL_PLACES[] = {
         "Historic lighthouse clifftop & Table Mountain National Park",
         "Cape Point Clifftop View",
         "SANParks Official Tourism",
+        "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=400&q=80",
         1,
         true
     }

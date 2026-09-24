@@ -22,6 +22,7 @@ struct PlaceLocation {
     const char* highlight;
     const char* cam_name;
     const char* cam_source;
+    const char* snapshot_url;
     int cam_count;
     bool is_online;
 };

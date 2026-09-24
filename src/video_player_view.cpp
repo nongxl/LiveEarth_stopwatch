@@ -1,5 +1,7 @@
 #include "video_player_view.h"
 #include "config.h"
+#include "snapshot_player.h"
+#include "network_manager.h"
 #include <cmath>
 
 #pragma GCC optimize ("O3,fast-math")
@@ -54,7 +56,18 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
 
         // 2. 16:9 黄金内接视频视窗底色与微光科技框 (X: 30, Y: 119, W: 406, H: 228)
         // 对角线 = sqrt(406^2 + 228^2) = 466px
-        display.fillRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, 0x0821);
+        if (snapshot_player.hasValidFrame()) {
+            snapshot_player.renderFullscreen(display, VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H);
+        } else {
+            display.fillRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, 0x0821);
+            if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+                display.setTextDatum(middle_center);
+                display.setTextSize(1);
+                display.setTextColor(0x07FF, 0x0821);
+                display.drawString("FETCHING HIGH RESOLUTION STREAM...", SCREEN_CENTER_X, VIDEO_Y + VIDEO_H / 2);
+            }
+        }
+
         display.drawRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, 0x3C19);
         display.drawRect(VIDEO_X - 1, VIDEO_Y - 1, VIDEO_W + 2, VIDEO_H + 2, 0x1B55);
 

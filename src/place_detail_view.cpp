@@ -1,5 +1,7 @@
 #include "place_detail_view.h"
 #include "config.h"
+#include "snapshot_player.h"
+#include "network_manager.h"
 #include <cmath>
 
 #pragma GCC optimize ("O3,fast-math")
@@ -116,7 +118,12 @@ void PlaceDetailView::drawRightPanel(M5GFX& display, const PlaceLocation* place)
 
 void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocation* place) {
     // 中等大小预览视窗 (X: 113, Y: 122, W: 240, H: 135, 16:9 标准比例)
-    display.fillRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x0842);
+    if (snapshot_player.hasValidFrame()) {
+        snapshot_player.renderPreview(display, PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H);
+    } else {
+        display.fillRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x0842);
+    }
+
     display.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x4EEB);
     display.drawRect(PREVIEW_X - 1, PREVIEW_Y - 1, PREVIEW_W + 2, PREVIEW_H + 2, 0x2354);
 
@@ -141,13 +148,26 @@ void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocatio
     // 左上角: 实时流角标
     display.setTextDatum(top_left);
     display.setTextSize(1);
-    display.setTextColor(0x07E0, 0x0842);
-    display.drawString("* LIVE 1080P", PREVIEW_X + 8, PREVIEW_Y + 7);
+    if (snapshot_player.hasValidFrame()) {
+        display.setTextColor(0x07E0, 0x0000);
+        display.drawString("* LIVE SNAPSHOT", PREVIEW_X + 8, PREVIEW_Y + 7);
+    } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+        display.setTextColor(0x07FF, 0x0842);
+        display.drawString("* LOADING...", PREVIEW_X + 8, PREVIEW_Y + 7);
+    } else {
+        display.setTextColor(0xFDC0, 0x0842);
+        display.drawString("* DEMO FEED", PREVIEW_X + 8, PREVIEW_Y + 7);
+    }
 
-    // 右上角: 来源许可
+    // 右上角: 来源许可与网络指示
     display.setTextDatum(top_right);
-    display.setTextColor(0xFDC0, 0x0842);
-    display.drawString("APPROVED", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+    if (network_mgr.isConnected()) {
+        display.setTextColor(0x07E0, 0x0000);
+        display.drawString("ONLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+    } else {
+        display.setTextColor(0x7BEF, 0x0842);
+        display.drawString("OFFLINE", PREVIEW_X + PREVIEW_W - 8, PREVIEW_Y + 7);
+    }
 
     // 中央大号发光播放按钮与高对比度文字 (字号大、极易阅读与点击操作！)
     int cx = PREVIEW_X + PREVIEW_W / 2;
@@ -156,17 +176,25 @@ void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocatio
     float pulse = 0.5f + 0.5f * sinf(pulse_phase);
     uint16_t btn_col = (pulse > 0.4f ? 0xFFFF : 0x4EEB);
 
-    // 绘制显眼的大播放三角形
-    display.fillTriangle(cx - 8, cy - 12, cx - 8, cy + 8, cx + 10, cy - 2, btn_col);
+    if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+        // 动态加载中：赛博光环扫描效果
+        display.setTextDatum(middle_center);
+        display.setTextSize(1);
+        display.setTextColor(0x07FF, 0x0842);
+        display.drawString("FETCHING LIVE CAMERA...", cx, cy);
+    } else {
+        // 绘制显眼的大播放三角形与全屏提示
+        display.fillTriangle(cx - 8, cy - 12, cx - 8, cy + 8, cx + 10, cy - 2, btn_col);
 
-    display.setTextDatum(middle_center);
-    display.setTextSize(1);
-    display.setTextColor(btn_col, 0x0842);
-    display.drawString("TAP TO PLAY FULLSCREEN", cx, cy + 24);
+        display.setTextDatum(middle_center);
+        display.setTextSize(1);
+        display.setTextColor(btn_col, 0x0000);
+        display.drawString("TAP TO PLAY FULLSCREEN", cx, cy + 24);
+    }
 
     // 底部摄像机官方名称 (纯白粗体)
     display.setTextDatum(bottom_left);
-    display.setTextColor(0xFFFF, 0x0842);
+    display.setTextColor(0xFFFF, 0x0000);
     display.drawString(place->cam_name, PREVIEW_X + 8, PREVIEW_Y + PREVIEW_H - 7);
 }
 

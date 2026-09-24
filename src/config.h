@@ -35,3 +35,19 @@
 // System Monitor Settings
 #define SERIAL_BAUD_RATE     115200
 #define STATUS_UPDATE_INTERVAL_MS 1000
+
+// Wi-Fi & Network Configuration (Offline-first by default)
+#ifndef WIFI_SSID
+#define WIFI_SSID            ""        // 用户可直接在此处或编译参数中填写 Wi-Fi SSID
+#endif
+#ifndef WIFI_PASSWORD
+#define WIFI_PASSWORD        ""        // Wi-Fi 密码
+#endif
+#define WIFI_CONNECT_TIMEOUT_MS 10000
+#define WIFI_RETRY_INTERVAL_MS  20000
+
+// Snapshot Stream Engine Settings
+#define SNAPSHOT_REFRESH_INTERVAL_MS 10000  // 10秒定时获取最新一帧
+#define SNAPSHOT_HTTP_TIMEOUT_MS     6000   // 6秒超时保护
+#define SNAPSHOT_MAX_BUF_SIZE        (128 * 1024) // 128KB PSRAM 接收缓冲区
+
