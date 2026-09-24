@@ -38,10 +38,10 @@
 
 // Wi-Fi & Network Configuration (Offline-first by default)
 #ifndef WIFI_SSID
-#define WIFI_SSID            ""        // 用户可直接在此处或编译参数中填写 Wi-Fi SSID
+#define WIFI_SSID            "test_2.4G"        // 用户可直接在此处或编译参数中填写 Wi-Fi SSID
 #endif
 #ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD        ""        // Wi-Fi 密码
+#define WIFI_PASSWORD        "GXcc550771"        // Wi-Fi 密码
 #endif
 #define WIFI_CONNECT_TIMEOUT_MS 10000
 #define WIFI_RETRY_INTERVAL_MS  20000

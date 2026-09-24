@@ -9,6 +9,7 @@ SnapshotPlayer snapshot_player;
 
 SnapshotPlayer::SnapshotPlayer()
     : current_state(SNAP_STATE_IDLE),
+      new_frame_flag(false),
       frame_buffer(nullptr),
       buffer_size(0),
       buffer_capacity(SNAPSHOT_MAX_BUF_SIZE),
@@ -124,8 +125,11 @@ void SnapshotPlayer::fetchTaskWorker() {
         http.begin(plain_client, current_url);
     }
 
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setReuse(false);
     http.setTimeout(SNAPSHOT_HTTP_TIMEOUT_MS);
-    http.addHeader("User-Agent", "LiveEarth-Stopwatch/1.0 (ESP32-S3)");
+    http.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    http.addHeader("Accept", "image/jpeg,image/*,*/*");
 
     int http_code = http.GET();
     if (http_code == HTTP_CODE_OK) {
@@ -185,6 +189,7 @@ void SnapshotPlayer::fetchTaskWorker() {
     if (success) {
         current_state = SNAP_STATE_READY;
         last_fetch_ms = millis();
+        new_frame_flag = true;
     } else {
         current_state = SNAP_STATE_ERROR;
     }
@@ -195,8 +200,8 @@ void SnapshotPlayer::fetchTaskWorker() {
 void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            // M5GFX 硬件解码 JPEG 并适配渲染到卡片视口
-            display.drawJpg(frame_buffer, buffer_size, x, y, w, h, 0, 0, 0.0f, 0.0f, datum_t::middle_center);
+            // M5GFX 硬件解码 JPEG 并从左上角 (x, y) 适配渲染到卡片视口
+            display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
             xSemaphoreGive(buffer_mutex);
         }
     }
@@ -205,8 +210,8 @@ void SnapshotPlayer::renderPreview(M5GFX& display, int16_t x, int16_t y, int16_t
 void SnapshotPlayer::renderFullscreen(M5GFX& display, int16_t x, int16_t y, int16_t w, int16_t h) {
     if (hasValidFrame()) {
         if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            // 全屏居中解码绘制
-            display.drawJpg(frame_buffer, buffer_size, x, y, w, h, 0, 0, 0.0f, 0.0f, datum_t::middle_center);
+            // 全屏视窗从左上角 (x, y) 开始解码绘制
+            display.drawJpg(frame_buffer, buffer_size, x, y, w, h);
             xSemaphoreGive(buffer_mutex);
         }
     }

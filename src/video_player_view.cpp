@@ -25,6 +25,11 @@ void VideoPlayerView::update(uint32_t now_ms) {
     anim_start_ms = now_ms;
     if (dt > 0.1f) dt = 0.1f;
 
+    // 当网络新帧就绪时自动刷新全屏底图
+    if (snapshot_player.hasNewFrame()) {
+        needs_full_redraw = true;
+    }
+
     scan_pos += dt * 70.0f;
     if (scan_pos >= VIDEO_H) {
         scan_pos -= VIDEO_H;

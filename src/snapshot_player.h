@@ -30,6 +30,13 @@ public:
 
     SnapshotState getState() const { return current_state; }
     bool hasValidFrame() const { return current_state == SNAP_STATE_READY && buffer_size > 0; }
+    bool hasNewFrame() {
+        if (new_frame_flag) {
+            new_frame_flag = false;
+            return true;
+        }
+        return false;
+    }
     uint32_t getLastFetchTime() const { return last_fetch_ms; }
 
     // 停止并清理缓冲
@@ -37,6 +44,7 @@ public:
 
 private:
     SnapshotState current_state;
+    volatile bool new_frame_flag;
     uint8_t* frame_buffer;
     size_t buffer_size;
     size_t buffer_capacity;

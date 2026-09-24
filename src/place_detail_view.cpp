@@ -25,6 +25,11 @@ void PlaceDetailView::update(uint32_t now_ms) {
     anim_start_ms = now_ms;
     if (dt > 0.1f) dt = 0.1f;
 
+    // 当网络后台成功下载新快照帧时，立即触发全量重绘刷新上屏
+    if (snapshot_player.hasNewFrame()) {
+        needs_full_redraw = true;
+    }
+
     // 呼吸灯与扫描线动画
     pulse_phase += dt * 3.5f;
     if (pulse_phase >= 6.2831853f) pulse_phase -= 6.2831853f;
