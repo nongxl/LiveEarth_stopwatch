@@ -1162,9 +1162,9 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0xF800,
         "Shield volcano on the Big Island of Hawaii, historically one of the most active and intensely monitored volcanoes on the planet.",
         "Halemaʻumaʻu caldera crater floor lava lake fountaining & glowing sulfur vents",
-        "HVO Caldera Live",
+        "K2cam Caldera Live",
         "USGS Hawaiian Volcano Observatory",
-        "https://volcanoes.usgs.gov/vsc/captures/kilauea/KWcam-latest.jpg",
+        "https://volcanoes.usgs.gov/observatories/hvo/cams/K2cam/images/M.jpg",
         1,
         true
     },
@@ -1902,11 +1902,11 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0x9FFF,
         "Premier astronomical research facility in the world situated atop a 4,205m dormant volcano above tropical clouds.",
         "Keck I & II giant optical telescopes, clear dark skies & sea of clouds",
-        "CFHT Ridge Cam",
-        "Institute for Astronomy Hawaii",
-        "",
+        "MLcam Summit Live",
+        "USGS Hawaiian Volcano Observatory",
+        "https://volcanoes.usgs.gov/observatories/hvo/cams/MLcam/images/M.jpg",
         1,
-        false
+        true
     },
     {
         "au-twelve-apostles",

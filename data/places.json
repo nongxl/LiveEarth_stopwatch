@@ -1096,9 +1096,9 @@
     "color": 63488,
     "desc": "Shield volcano on the Big Island of Hawaii, historically one of the most active and intensely monitored volcanoes on the planet.",
     "hl": "Halemaʻumaʻu caldera crater floor lava lake fountaining & glowing sulfur vents",
-    "cam_name": "HVO Caldera Live",
+    "cam_name": "K2cam Caldera Live",
     "src": "USGS Hawaiian Volcano Observatory",
-    "url": "https://volcanoes.usgs.gov/vsc/captures/kilauea/KWcam-latest.jpg",
+    "url": "https://volcanoes.usgs.gov/observatories/hvo/cams/K2cam/images/M.jpg",
     "online": true
   },
   {
@@ -1799,10 +1799,10 @@
     "color": 40959,
     "desc": "Premier astronomical research facility in the world situated atop a 4,205m dormant volcano above tropical clouds.",
     "hl": "Keck I & II giant optical telescopes, clear dark skies & sea of clouds",
-    "cam_name": "CFHT Ridge Cam",
-    "src": "Institute for Astronomy Hawaii",
-    "url": "",
-    "online": false
+    "cam_name": "MLcam Summit Live",
+    "src": "USGS Hawaiian Volcano Observatory",
+    "url": "https://volcanoes.usgs.gov/observatories/hvo/cams/MLcam/images/M.jpg",
+    "online": true
   },
   {
     "id": "au-twelve-apostles",
