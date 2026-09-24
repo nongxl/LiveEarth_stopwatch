@@ -35,6 +35,22 @@ void GlobeEngine::init(int16_t center_x, int16_t center_y, float radius) {
     base_radius = radius;
 }
 
+void GlobeEngine::setCenterAndRadius(int16_t center_x, int16_t center_y, float radius) {
+    cx = center_x;
+    cy = center_y;
+    base_radius = radius;
+}
+
+void GlobeEngine::focusLatLng(float lat_deg, float lon_deg) {
+    // 将指定经纬度平滑对准视野正中心
+    current_pitch = lat_deg * DEG_TO_RAD;
+    current_yaw = lon_deg * DEG_TO_RAD;
+    if (current_pitch > PITCH_LIMIT) current_pitch = PITCH_LIMIT;
+    if (current_pitch < -PITCH_LIMIT) current_pitch = -PITCH_LIMIT;
+    vel_pitch = 0.0f;
+    vel_yaw = 0.0f;
+}
+
 void GlobeEngine::setSunPosition(float subsolar_lat, float subsolar_lon) {
     sun_pos.subsolar_lat = subsolar_lat;
     sun_pos.subsolar_lon = subsolar_lon;

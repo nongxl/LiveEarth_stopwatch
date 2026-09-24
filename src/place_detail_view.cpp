@@ -5,12 +5,14 @@
 #pragma GCC optimize ("O3,fast-math")
 
 PlaceDetailView::PlaceDetailView()
-    : anim_start_ms(0), pulse_phase(0.0f), needs_full_redraw(true), last_rendered_place(nullptr) {
+    : anim_start_ms(0), pulse_phase(0.0f), scanline_y(0.0f),
+      needs_full_redraw(true), last_rendered_place(nullptr) {
 }
 
 void PlaceDetailView::init() {
     anim_start_ms = millis();
     pulse_phase = 0.0f;
+    scanline_y = 0.0f;
     needs_full_redraw = true;
     last_rendered_place = nullptr;
 }
@@ -21,180 +23,200 @@ void PlaceDetailView::update(uint32_t now_ms) {
     anim_start_ms = now_ms;
     if (dt > 0.1f) dt = 0.1f;
 
-    // 呼吸灯动画周期约 1.5 秒
-    pulse_phase += dt * 4.0f;
-    if (pulse_phase >= 6.2831853f) {
-        pulse_phase -= 6.2831853f;
-    }
+    // 呼吸灯与扫描线动画
+    pulse_phase += dt * 3.5f;
+    if (pulse_phase >= 6.2831853f) pulse_phase -= 6.2831853f;
+
+    scanline_y += dt * 50.0f;
+    if (scanline_y >= PREVIEW_H) scanline_y -= PREVIEW_H;
 }
 
-void PlaceDetailView::drawHeader(M5GFX& display, const PlaceLocation* place) {
-    // 1. 顶部表盘微光弧
-    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 224, 230, 310, 0x1B55);
+void PlaceDetailView::drawTopInfo(M5GFX& display, const PlaceLocation* place) {
+    // 1. 顶部表盘弧线 (R: 226)
+    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 224, 240, 300, 0x1B55);
 
-    // 2. 分类微标药丸 Badge (Y: 45)
+    // 2. 分类徽标药丸 (Y: 34)
     char cat_str[32];
     snprintf(cat_str, sizeof(cat_str), "[ %s ]", place->category);
-    // 转大写
     for (int i = 0; cat_str[i]; i++) {
         if (cat_str[i] >= 'a' && cat_str[i] <= 'z') cat_str[i] -= 32;
     }
-
-    display.setTextColor(place->theme_color, COLOR_BG);
     display.setTextDatum(middle_center);
     display.setTextSize(1);
-    display.drawString(cat_str, SCREEN_CENTER_X, 48);
+    display.setTextColor(place->theme_color, COLOR_BG);
+    display.drawString(cat_str, SCREEN_CENTER_X, 34);
 
-    // 3. 国家与大区 (Y: 66)
-    char region_str[64];
-    snprintf(region_str, sizeof(region_str), "%s  |  %s", place->country, place->region);
+    // 3. 国家与大区 (Y: 54)
+    char reg_str[64];
+    snprintf(reg_str, sizeof(reg_str), "%s  |  %s", place->country, place->region);
     display.setTextColor(0xA554, COLOR_BG);
-    display.drawString(region_str, SCREEN_CENTER_X, 68);
-}
+    display.drawString(reg_str, SCREEN_CENTER_X, 54);
 
-void PlaceDetailView::drawCoreInfo(M5GFX& display, const PlaceLocation* place) {
-    // 1. 地名英文大标题 (Y: 96)
-    display.setTextColor(0xFFFF, COLOR_BG);
-    display.setTextDatum(middle_center);
+    // 4. 地点大标题 (Y: 76, 字号 2, 纯白高亮)
     display.setTextSize(2);
-    display.drawString(place->name, SCREEN_CENTER_X, 98);
+    display.setTextColor(0xFFFF, COLOR_BG);
+    display.drawString(place->name, SCREEN_CENTER_X, 76);
 
-    // 2. 当地母语名称 (Y: 122)
+    // 5. 本土语言名称与特色亮点 (Y: 100)
     display.setTextSize(1);
+    char sub_str[96];
+    snprintf(sub_str, sizeof(sub_str), "%s  *  %s", place->local_name, place->highlight);
     display.setTextColor(place->theme_color, COLOR_BG);
-    display.drawString(place->local_name, SCREEN_CENTER_X, 124);
+    display.drawString(sub_str, SCREEN_CENTER_X, 102);
 
-    // 3. 经纬度微标 (Y: 142)
-    char coord_str[64];
-    snprintf(coord_str, sizeof(coord_str), "GEO: %4.2f%c, %5.2f%c",
-             fabsf(place->latitude), (place->latitude >= 0 ? 'N' : 'S'),
-             fabsf(place->longitude), (place->longitude >= 0 ? 'E' : 'W'));
-    display.setTextColor(0x7BEF, COLOR_BG);
-    display.drawString(coord_str, SCREEN_CENTER_X, 144);
-
-    // 4. 精致横向装饰分割线与中央菱形 (Y: 158)
-    display.drawLine(110, 158, 220, 158, 0x2354);
-    display.drawLine(246, 158, 356, 158, 0x2354);
-    display.fillCircle(SCREEN_CENTER_X, 158, 2, place->theme_color);
+    // 6. 微细分割线 (Y: 118)
+    display.drawLine(SCREEN_CENTER_X - 120, 118, SCREEN_CENTER_X + 120, 118, 0x2354);
+    display.fillCircle(SCREEN_CENTER_X, 118, 2, place->theme_color);
 }
 
-void PlaceDetailView::drawDescription(M5GFX& display, const PlaceLocation* place) {
+void PlaceDetailView::drawLeftPanel(M5GFX& display, const PlaceLocation* place) {
+    // 预览窗左侧垂直参数 (X 中心约 68, Y: 140 ~ 250)
+    int lx = 64;
+
     display.setTextDatum(middle_center);
     display.setTextSize(1);
-    display.setTextColor(0xDEFB, COLOR_BG);
 
-    // 自动折行简短介绍 (针对圆形屏幕优化排版，Y: 178, 196)
-    const char* desc = place->description;
-    size_t len = strlen(desc);
+    // 1. 纬度
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("LAT", lx, 142);
+    char lat_str[16];
+    snprintf(lat_str, sizeof(lat_str), "%4.2f%c", fabsf(place->latitude), (place->latitude >= 0 ? 'N' : 'S'));
+    display.setTextColor(0xFFFF, COLOR_BG);
+    display.drawString(lat_str, lx, 156);
 
-    if (len <= 48) {
-        display.drawString(desc, SCREEN_CENTER_X, 186);
-    } else {
-        // 寻找中间空格分割成两行
-        int split_idx = 42;
-        while (split_idx > 20 && desc[split_idx] != ' ') {
-            split_idx--;
-        }
-        char line1[64] = {0};
-        char line2[64] = {0};
-        strncpy(line1, desc, split_idx);
-        strncpy(line2, desc + split_idx + 1, sizeof(line2) - 1);
+    // 2. 经度
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("LON", lx, 174);
+    char lon_str[16];
+    snprintf(lon_str, sizeof(lon_str), "%5.2f%c", fabsf(place->longitude), (place->longitude >= 0 ? 'E' : 'W'));
+    display.setTextColor(0xFFFF, COLOR_BG);
+    display.drawString(lon_str, lx, 188);
 
-        display.drawString(line1, SCREEN_CENTER_X, 178);
-        display.drawString(line2, SCREEN_CENTER_X, 194);
-    }
+    // 3. 海拔/高度
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("ELEV", lx, 206);
+    display.setTextColor(0x4EEB, COLOR_BG);
+    display.drawString((strcmp(place->category, "mountain") == 0 ? "3,776M" : "SEA LVL"), lx, 220);
 
-    // 亮点标签 (Y: 218)
-    char hl_buf[96];
-    snprintf(hl_buf, sizeof(hl_buf), "* %s", place->highlight);
-    display.setTextColor(0xFDC0, COLOR_BG); // 暖金微光
-    display.drawString(hl_buf, SCREEN_CENTER_X, 218);
+    // 4. 时区
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("ZONE", lx, 238);
+    display.setTextColor(0xFDC0, COLOR_BG);
+    int tz_offset = (int)(place->longitude / 15.0f);
+    char tz_str[16];
+    snprintf(tz_str, sizeof(tz_str), "UTC%+d", tz_offset);
+    display.drawString(tz_str, lx, 252);
 }
 
-void PlaceDetailView::drawCameraCard(M5GFX& display, const PlaceLocation* place) {
-    int card_x = 73;
-    int card_y = 242;
-    int card_w = 320;
-    int card_h = 118;
-    int r = 10;
+void PlaceDetailView::drawRightPanel(M5GFX& display, const PlaceLocation* place) {
+    // 预览窗右侧垂直参数 (X 中心约 400, Y: 140 ~ 250)
+    int rx = 402;
 
-    // 卡片背景与科技边框
-    display.fillRoundRect(card_x, card_y, card_w, card_h, r, 0x0862);
-    display.drawRoundRect(card_x, card_y, card_w, card_h, r, 0x2354);
+    display.setTextDatum(middle_center);
+    display.setTextSize(1);
 
-    // 动态呼吸状态指示灯 (🟢 LIVE ONLINE)
+    // 1. 状态 (🟢 ONLINE)
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("FEED", rx, 142);
+    display.setTextColor(0x07E0, COLOR_BG);
+    display.drawString("* ONLINE", rx, 156);
+
+    // 2. 来源级别
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("SOURCE", rx, 174);
+    display.setTextColor(0xFFFF, COLOR_BG);
+    display.drawString("OFFICIAL", rx, 188);
+
+    // 3. 授权合规
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("LICENSE", rx, 206);
+    display.setTextColor(0xFDC0, COLOR_BG);
+    display.drawString("APPROVED", rx, 220);
+
+    // 4. 传输协议
+    display.setTextColor(0x7BEF, COLOR_BG);
+    display.drawString("TYPE", rx, 238);
+    display.setTextColor(0x4EEB, COLOR_BG);
+    display.drawString("SNAPSHOT", rx, 252);
+}
+
+void PlaceDetailView::drawMediumPreviewWindow(M5GFX& display, const PlaceLocation* place) {
+    // 中等大小预览视窗 (X: 121, Y: 135, W: 224, H: 126, 16:9)
+    display.fillRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x0842);
+    display.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H, 0x3457);
+
+    // 四角 HUD 瞄准括号
+    int16_t b_len = 6;
+    display.drawLine(PREVIEW_X, PREVIEW_Y, PREVIEW_X + b_len, PREVIEW_Y, 0xFFFF);
+    display.drawLine(PREVIEW_X, PREVIEW_Y, PREVIEW_X, PREVIEW_Y + b_len, 0xFFFF);
+
+    display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y, PREVIEW_X + PREVIEW_W - 1 - b_len, PREVIEW_Y, 0xFFFF);
+    display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y, PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + b_len, 0xFFFF);
+
+    display.drawLine(PREVIEW_X, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + b_len, PREVIEW_Y + PREVIEW_H - 1, 0xFFFF);
+    display.drawLine(PREVIEW_X, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X, PREVIEW_Y + PREVIEW_H - 1 - b_len, 0xFFFF);
+
+    display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1 - b_len, PREVIEW_Y + PREVIEW_H - 1, 0xFFFF);
+    display.drawLine(PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1, PREVIEW_X + PREVIEW_W - 1, PREVIEW_Y + PREVIEW_H - 1 - b_len, 0xFFFF);
+
+    // 预览窗顶部信息小条
+    display.setTextDatum(top_left);
+    display.setTextSize(1);
+    display.setTextColor(0x7BEF, 0x0842);
+    display.drawString("LIVE CAM PREVIEW", PREVIEW_X + 8, PREVIEW_Y + 6);
+
+    // 动态扫描线 (Scanline)
+    int sy = PREVIEW_Y + (int)scanline_y;
+    display.drawLine(PREVIEW_X + 2, sy, PREVIEW_X + PREVIEW_W - 3, sy, 0x2475);
+
+    // 中央播放微标与点击放大提示
+    int cx = PREVIEW_X + PREVIEW_W / 2;
+    int cy = PREVIEW_Y + PREVIEW_H / 2;
+
     float pulse = 0.5f + 0.5f * sinf(pulse_phase);
-    int light_x = card_x + 20;
-    int light_y = card_y + 20;
+    uint16_t btn_col = (pulse > 0.5f ? 0xFFFF : 0x4EEB);
 
-    display.fillCircle(light_x, light_y, 4, 0x07E0); // 实体翡翠绿
-    int pulse_r = 4 + (int)(3.0f * pulse);
-    display.drawCircle(light_x, light_y, pulse_r, 0x47E0);
+    // 播放三角形
+    display.fillTriangle(cx - 6, cy - 10, cx - 6, cy + 6, cx + 8, cy - 2, btn_col);
 
-    display.setTextDatum(middle_left);
-    display.setTextSize(1);
-    display.setTextColor(0x07E0, 0x0862);
-    display.drawString("LIVE WEBCAM ONLINE", light_x + 14, light_y);
+    display.setTextDatum(middle_center);
+    display.setTextColor(btn_col, 0x0842);
+    display.drawString("TAP TO ENLARGE", cx, cy + 22);
 
-    // 摄像头官方全称
-    display.setTextColor(0xFFFF, 0x0862);
-    display.drawString(place->cam_name, card_x + 20, card_y + 46);
-
-    // 来源与审核状态
-    char src_buf[64];
-    snprintf(src_buf, sizeof(src_buf), "Source: %s", place->cam_source);
-    display.setTextColor(0x9CF3, 0x0862);
-    display.drawString(src_buf, card_x + 20, card_y + 70);
-
-    // 合法公开背书微标
-    display.setTextColor(0xFDC0, 0x0862);
-    display.drawString("[ APPROVED OFFICIAL FEED ]", card_x + 20, card_y + 94);
+    // 底部摄像机简名
+    display.setTextDatum(bottom_left);
+    display.setTextColor(0xA554, 0x0842);
+    display.drawString(place->cam_name, PREVIEW_X + 8, PREVIEW_Y + PREVIEW_H - 6);
 }
 
-void PlaceDetailView::drawFooterControls(M5GFX& display, const PlaceLocation* place) {
+void PlaceDetailView::drawFooterGuidance(M5GFX& display) {
     display.setTextDatum(middle_center);
     display.setTextSize(1);
 
-    // 滑动提示 (Y: 388)
+    // 底部控制提示 (位于避让地球仪下方的弧形表圈边缘)
     display.setTextColor(0x7BEF, COLOR_BG);
-    display.drawString("< SWIPE LEFT / RIGHT TO EXPLORE >", SCREEN_CENTER_X, 388);
-
-    // 物理按键与退出提示 (Y: 410)
-    display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
-    display.drawString("[BtnA] BACK TO GLOBE", SCREEN_CENTER_X, 410);
-
-    // 底部表盘微光弧
-    display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 224, 50, 130, 0x1B55);
+    display.drawString("< SWIPE TO SWITCH | BTNA BACK >", SCREEN_CENTER_X, 442);
 }
 
 void PlaceDetailView::render(M5GFX& display, const PlaceLocation* place) {
     if (!place) return;
 
-    // 当地点改变或首次进入时，全量重绘底色和所有静态文字
     if (needs_full_redraw || place != last_rendered_place) {
-        display.fillScreen(COLOR_BG);
+        // 清理上半区和左右侧区域，保留下半区给避让的地球仪
+        display.fillRect(0, 0, SCREEN_WIDTH, 268, COLOR_BG);
+        display.fillRect(0, 268, 73, 198, COLOR_BG);
+        display.fillRect(393, 268, 73, 198, COLOR_BG);
 
-        drawHeader(display, place);
-        drawCoreInfo(display, place);
-        drawDescription(display, place);
-        drawCameraCard(display, place);
-        drawFooterControls(display, place);
+        drawTopInfo(display, place);
+        drawLeftPanel(display, place);
+        drawRightPanel(display, place);
+        drawMediumPreviewWindow(display, place);
+        drawFooterGuidance(display);
 
         needs_full_redraw = false;
         last_rendered_place = place;
     } else {
-        // 后续帧只微刷新摄像头的动态呼吸灯，零重绘闪烁，极高刷新率！
-        int card_x = 73;
-        int card_y = 242;
-        int light_x = card_x + 20;
-        int light_y = card_y + 20;
-
-        // 局部擦除呼吸灯外圈
-        display.fillCircle(light_x, light_y, 9, 0x0862);
-        display.fillCircle(light_x, light_y, 4, 0x07E0);
-
-        float pulse = 0.5f + 0.5f * sinf(pulse_phase);
-        int pulse_r = 4 + (int)(3.0f * pulse);
-        display.drawCircle(light_x, light_y, pulse_r, 0x47E0);
+        // 动态帧：只微刷新中央视频窗口中的扫描线与呼吸提示
+        drawMediumPreviewWindow(display, place);
     }
 }

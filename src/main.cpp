@@ -7,13 +7,15 @@
 #include "sun_calc.h"
 #include "place_marker.h"
 #include "place_detail_view.h"
+#include "video_player_view.h"
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
 // -------------------------------------------------------------
 enum AppViewState {
-    VIEW_GLOBE = 0,
-    VIEW_PLACE_DETAIL = 1
+    VIEW_GLOBE = 0,         // 1. 3D 地球全屏居中探索模式
+    VIEW_PLACE_PREVIEW = 1, // 2. 地球下移避让 + 中央预览窗 + 上左右多维信息环绕
+    VIEW_VIDEO_FULL = 2     // 3. 最大内接矩形全屏放大播放器 (406x228, 对角线 466px)
 };
 
 static AppViewState current_view_state = VIEW_GLOBE;
@@ -21,7 +23,8 @@ static M5Canvas canvas(&M5.Display);
 static GlobeEngine globe;
 static SunCalculator sun_calc;
 static PlaceMarkerManager place_mgr;
-static PlaceDetailView detail_view;
+static PlaceDetailView preview_view;
+static VideoPlayerView video_player;
 
 struct TouchGestureState {
     int16_t last_x = -1;
@@ -170,9 +173,10 @@ void setup() {
     cfg.internal_rtc = true;
     M5.begin(cfg);
 
-    // 初始化地理地点管理器与详情视图
+    // 初始化地理地点管理器、预览视图与全屏播放器
     place_mgr.init();
-    detail_view.init();
+    preview_view.init();
+    video_player.init();
 
     print_system_diagnostics();
 
@@ -206,6 +210,40 @@ void setup() {
 }
 
 // -------------------------------------------------------------
+// Helper: 状态转场函数
+// -------------------------------------------------------------
+static void transition_to_view(AppViewState new_state) {
+    if (current_view_state == new_state) return;
+
+    if (new_state == VIEW_GLOBE) {
+        // 返回地球仪居中模式：恢复地球仪居中半径与中心
+        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, GLOBE_DEFAULT_RADIUS);
+        current_view_state = VIEW_GLOBE;
+        M5.Display.fillScreen(COLOR_BG);
+        draw_static_hud_markers();
+        perf.last_hud_update = 0;
+        Serial.println("[State] -> VIEW_GLOBE (Centered 3D Earth)");
+    } else if (new_state == VIEW_PLACE_PREVIEW) {
+        // 进入预览模式：地球仪对准该地点并向下避让微缩
+        const PlaceLocation* p = place_mgr.getSelectedPlace();
+        if (p) {
+            globe.focusLatLng(p->latitude, p->longitude);
+        }
+        // 下移避让模式下，地球基准半径设为 130，内部中心仍为 160, 160
+        globe.setCenterAndRadius(GLOBE_CANVAS_CENTER, GLOBE_CANVAS_CENTER, 130.0f);
+        current_view_state = VIEW_PLACE_PREVIEW;
+        M5.Display.fillScreen(COLOR_BG);
+        preview_view.requestRedraw();
+        Serial.println("[State] -> VIEW_PLACE_PREVIEW (Globe Avoidance Downward + Center Preview Window)");
+    } else if (new_state == VIEW_VIDEO_FULL) {
+        // 进入对角线466黄金内接放大播放模式
+        current_view_state = VIEW_VIDEO_FULL;
+        video_player.requestRedraw();
+        Serial.println("[State] -> VIEW_VIDEO_FULL (16:9 Max-Inscribed 406x228, Diagonal=466)");
+    }
+}
+
+// -------------------------------------------------------------
 // Loop
 // -------------------------------------------------------------
 void loop() {
@@ -225,25 +263,25 @@ void loop() {
     }
 
     // 2. 物理按键处理 (根据状态机分流)
-    if (current_view_state == VIEW_PLACE_DETAIL) {
-        if (M5.BtnA.wasClicked()) {
-            // 在地点详情模式下，按物理键直接返回 3D 地球仪探索视图
-            current_view_state = VIEW_GLOBE;
-            M5.Display.fillScreen(COLOR_BG);
-            draw_static_hud_markers();
-            perf.last_hud_update = 0;
-            Serial.println("[BtnA] Exiting Place View -> Back to Globe.");
-        }
-    } else {
-        // VIEW_GLOBE 模式
-        if (M5.BtnA.wasClicked()) {
+    if (M5.BtnA.wasClicked()) {
+        if (current_view_state == VIEW_VIDEO_FULL) {
+            // 从放大视频返回中等预览模式
+            transition_to_view(VIEW_PLACE_PREVIEW);
+        } else if (current_view_state == VIEW_PLACE_PREVIEW) {
+            // 从中等预览模式返回居中地球仪
+            transition_to_view(VIEW_GLOBE);
+        } else {
+            // 在居中地球仪模式下，短按按键切换下一个地点并对准
             btn_click_count++;
             place_mgr.nextPlace();
             const PlaceLocation* p = place_mgr.getSelectedPlace();
             if (p) {
-                Serial.printf("[BtnA Click] Switched to place: %s (%s)\n", p->name, p->country);
+                globe.focusLatLng(p->latitude, p->longitude);
+                Serial.printf("[BtnA] Switched & focused to: %s (%s)\n", p->name, p->country);
             }
-        } else if (M5.BtnA.wasHold()) {
+        }
+    } else if (M5.BtnA.wasHold()) {
+        if (current_view_state == VIEW_GLOBE) {
             Serial.println("[BtnA Hold] Resetting globe orientation to default.");
             globe.resetOrientation();
         }
@@ -266,12 +304,11 @@ void loop() {
         } else {
             float dx = (float)(cur_x - touch_state.last_x);
             float dy = (float)(cur_y - touch_state.last_y);
-
             float total_dx = (float)(cur_x - touch_state.start_x);
             float total_dy = (float)(cur_y - touch_state.start_y);
 
-            if (current_view_state == VIEW_GLOBE) {
-                // 地球仪拖拽判定
+            // 在地球仪模式或预览模式下的下半区地球仪拖拽
+            if (current_view_state == VIEW_GLOBE || (current_view_state == VIEW_PLACE_PREVIEW && cur_y > 270)) {
                 if (!touch_state.is_dragging && (total_dx * total_dx + total_dy * total_dy > 36.0f)) {
                     touch_state.is_dragging = true;
                 }
@@ -291,7 +328,7 @@ void loop() {
             float move_dist_sq = total_dx * total_dx + total_dy * total_dy;
 
             if (current_view_state == VIEW_GLOBE) {
-                // 3D 地球仪模式下的点击与转场检测
+                // 1. 地球居中模式：点击 Marker
                 if (press_duration < 350 && move_dist_sq < 64.0f) {
                     int hit = place_mgr.hitTest(touch_state.start_x, touch_state.start_y, globe, 28.0f);
                     uint32_t time_since_last_tap = now - touch_state.last_tap_ms;
@@ -299,10 +336,8 @@ void loop() {
 
                     if (hit >= 0) {
                         if (hit == place_mgr.getSelectedIndex() || (time_since_last_tap < 450 && hit == touch_state.last_hit_idx)) {
-                            // 再次点击已选中的 Marker 或快速双击：转场进入 Place View！
-                            current_view_state = VIEW_PLACE_DETAIL;
-                            detail_view.requestRedraw();
-                            Serial.printf("[Transition] Marker Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                            // 第二次点击该地点：地球仪向下方避让，进入 VIEW_PLACE_PREVIEW！
+                            transition_to_view(VIEW_PLACE_PREVIEW);
                         } else {
                             place_mgr.setSelectedIndex(hit);
                             touch_state.last_hit_idx = hit;
@@ -312,19 +347,15 @@ void loop() {
                             }
                         }
                     } else if (touch_state.start_y >= 390 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
-                        // 点击底部地点卡片进入详情视图
-                        current_view_state = VIEW_PLACE_DETAIL;
-                        detail_view.requestRedraw();
-                        Serial.printf("[Transition] Bottom HUD Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                        // 点击底部卡片亦可进入预览模式
+                        transition_to_view(VIEW_PLACE_PREVIEW);
                     } else if (time_since_last_tap < 380) {
-                        // 屏幕任意位置双击进入当前选中地点详情
-                        current_view_state = VIEW_PLACE_DETAIL;
-                        detail_view.requestRedraw();
-                        Serial.printf("[Transition] Double Tap -> Entering Place View: %s\n", place_mgr.getSelectedPlace()->name);
+                        // 双击进入预览模式
+                        transition_to_view(VIEW_PLACE_PREVIEW);
                     }
                 }
-            } else if (current_view_state == VIEW_PLACE_DETAIL) {
-                // 地点详情视图模式下的手势检测
+            } else if (current_view_state == VIEW_PLACE_PREVIEW) {
+                // 2. 预览模式：点击中等窗口放大播放，或滑动切地点，或点击地球返回
                 if (fabsf(total_dx) > 40.0f && fabsf(total_dx) > fabsf(total_dy) * 1.4f) {
                     // 水平滑动切换地点 (Swipe Left: 下一处, Swipe Right: 上一处)
                     if (total_dx < 0) {
@@ -332,17 +363,24 @@ void loop() {
                     } else {
                         place_mgr.prevPlace();
                     }
-                    detail_view.requestRedraw();
-                    Serial.printf("[Detail Swipe] Now at: %s\n", place_mgr.getSelectedPlace()->name);
+                    const PlaceLocation* np = place_mgr.getSelectedPlace();
+                    if (np) globe.focusLatLng(np->latitude, np->longitude);
+                    preview_view.requestRedraw();
+                    Serial.printf("[Preview Swipe] Now at: %s\n", place_mgr.getSelectedPlace()->name);
                 } else if (press_duration < 350 && move_dist_sq < 64.0f) {
-                    // 点击底部退出区域或顶部返回
-                    if (touch_state.start_y >= 380 || touch_state.start_y <= 60) {
-                        current_view_state = VIEW_GLOBE;
-                        M5.Display.fillScreen(COLOR_BG);
-                        draw_static_hud_markers();
-                        perf.last_hud_update = 0;
-                        Serial.println("[Detail Tap] Returning to Globe.");
+                    // 点击判定
+                    if (PlaceDetailView::isInsidePreviewWindow(touch_state.start_x, touch_state.start_y)) {
+                        // 第三次点击：中等视频窗口点击放大播放 (VIEW_VIDEO_FULL)！
+                        transition_to_view(VIEW_VIDEO_FULL);
+                    } else if (touch_state.start_y > 275 || touch_state.start_y <= 60) {
+                        // 点击下方避让地球仪区域或顶部微标：返回居中全景地球
+                        transition_to_view(VIEW_GLOBE);
                     }
+                }
+            } else if (current_view_state == VIEW_VIDEO_FULL) {
+                // 3. 放大播放模式：点击任意位置缩回预览模式
+                if (press_duration < 350 && move_dist_sq < 64.0f) {
+                    transition_to_view(VIEW_PLACE_PREVIEW);
                 }
             }
 
@@ -355,11 +393,12 @@ void loop() {
 
     // 4. 视图分支渲染管线
     if (current_view_state == VIEW_GLOBE) {
-        // 4.1 物理惯性与地点动画更新
+        // -------------------------------------------------------------
+        // 4.1 VIEW_GLOBE: 3D 地球全屏居中探索模式
+        // -------------------------------------------------------------
         globe.update(dt_sec);
         place_mgr.update(now);
 
-        // 4.2 统计帧率与内存
         perf.frame_count++;
         if (now - perf.last_fps_update >= 500) {
             perf.current_fps = (perf.frame_count * 1000.0f) / (float)(now - perf.last_fps_update);
@@ -369,7 +408,6 @@ void loop() {
             perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
         }
 
-        // 4.3 高速渲染管线 (锁定总线事务传输)
         M5.Display.startWrite();
         canvas.fillScreen(COLOR_BG);
         globe.render(canvas);
@@ -381,12 +419,36 @@ void loop() {
             update_dynamic_hud();
         }
         M5.Display.endWrite();
-    } else if (current_view_state == VIEW_PLACE_DETAIL) {
-        // 地点详情视图 (Place View) 高速低功耗渲染
-        detail_view.update(now);
+
+    } else if (current_view_state == VIEW_PLACE_PREVIEW) {
+        // -------------------------------------------------------------
+        // 4.2 VIEW_PLACE_PREVIEW: 地球仪下移避让 + 中央预览窗 + 上左右多维信息
+        // -------------------------------------------------------------
+        globe.update(dt_sec);
+        place_mgr.update(now);
+        preview_view.update(now);
 
         M5.Display.startWrite();
-        detail_view.render(M5.Display, place_mgr.getSelectedPlace());
+
+        // 1. 渲染上、左、右多维信息与中央中等视频窗口
+        preview_view.render(M5.Display, place_mgr.getSelectedPlace());
+
+        // 2. 渲染下方避让的 3D 地球仪 (推送到 Y: 226，北半球穹顶隆起在 Y: 256，与预览窗底部咬合)
+        canvas.fillScreen(COLOR_BG);
+        globe.render(canvas);
+        place_mgr.renderMarkers(canvas, globe);
+        canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, 226);
+
+        M5.Display.endWrite();
+
+    } else if (current_view_state == VIEW_VIDEO_FULL) {
+        // -------------------------------------------------------------
+        // 4.3 VIEW_VIDEO_FULL: 16:9 最大内接矩形全屏放大播放器 (406x228, 对角线 466px)
+        // -------------------------------------------------------------
+        video_player.update(now);
+
+        M5.Display.startWrite();
+        video_player.render(M5.Display, place_mgr.getSelectedPlace());
         M5.Display.endWrite();
     }
 }

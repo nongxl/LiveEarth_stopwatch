@@ -4,17 +4,9 @@
 #include "place_marker.h"
 
 // -------------------------------------------------------------
-// LiveEarth PlaceDetailView (Phase 5)
-// Dedicated Circular AMOLED Experience for Location & Camera Exploration
+// LiveEarth PlaceDetailView (Phase 5 - Step 2)
+// Medium Video Preview Window with Top, Left, Right Information HUD
 // -------------------------------------------------------------
-
-enum DetailViewAction {
-    ACTION_NONE = 0,
-    ACTION_BACK_TO_GLOBE = 1,
-    ACTION_PREV_PLACE = 2,
-    ACTION_NEXT_PLACE = 3,
-    ACTION_VIEW_CAM = 4
-};
 
 class PlaceDetailView {
 public:
@@ -23,21 +15,33 @@ public:
     void init();
     void update(uint32_t now_ms);
 
-    // 渲染全屏 466x466 圆形地点详情视图
+    // 渲染中等视频预览窗口及上、左、右多维环绕信息
     void render(M5GFX& display, const PlaceLocation* place);
 
-    // 标记需要重绘（如地点切换时）
     void requestRedraw() { needs_full_redraw = true; }
+
+    // 中等视频预览窗几何常量 (16:9)
+    static constexpr int16_t PREVIEW_W = 224;
+    static constexpr int16_t PREVIEW_H = 126;
+    static constexpr int16_t PREVIEW_X = 121; // (466 - 224) / 2
+    static constexpr int16_t PREVIEW_Y = 135;
+
+    // 点击命中检测：是否点击了中央中等视频窗口
+    static bool isInsidePreviewWindow(int16_t tx, int16_t ty) {
+        return (tx >= PREVIEW_X - 6 && tx <= PREVIEW_X + PREVIEW_W + 6 &&
+                ty >= PREVIEW_Y - 6 && ty <= PREVIEW_Y + PREVIEW_H + 6);
+    }
 
 private:
     uint32_t anim_start_ms;
     float pulse_phase;
+    float scanline_y;
     bool needs_full_redraw;
     const PlaceLocation* last_rendered_place;
 
-    void drawHeader(M5GFX& display, const PlaceLocation* place);
-    void drawCoreInfo(M5GFX& display, const PlaceLocation* place);
-    void drawDescription(M5GFX& display, const PlaceLocation* place);
-    void drawCameraCard(M5GFX& display, const PlaceLocation* place);
-    void drawFooterControls(M5GFX& display, const PlaceLocation* place);
+    void drawTopInfo(M5GFX& display, const PlaceLocation* place);
+    void drawLeftPanel(M5GFX& display, const PlaceLocation* place);
+    void drawRightPanel(M5GFX& display, const PlaceLocation* place);
+    void drawMediumPreviewWindow(M5GFX& display, const PlaceLocation* place);
+    void drawFooterGuidance(M5GFX& display);
 };

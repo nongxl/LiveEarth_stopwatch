@@ -31,6 +31,10 @@ public:
     // 经纬度投影到屏幕
     bool projectLatLng(float lat_deg, float lon_deg, int16_t& out_screen_x, int16_t& out_screen_y, float& out_depth) const;
 
+    // 动态调整视口中心与基准半径 (用于下移避让)
+    void setCenterAndRadius(int16_t center_x, int16_t center_y, float radius);
+    void focusLatLng(float lat_deg, float lon_deg);
+
     float getRadius() const { return base_radius * current_zoom; }
     float getYaw() const { return current_yaw; }
     float getPitch() const { return current_pitch; }
