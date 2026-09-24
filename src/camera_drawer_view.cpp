@@ -208,17 +208,17 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
 void CameraDrawerView::renderEdgeHandle(M5GFX& display) {
     if (state != DRAWER_CLOSED) return;
 
-    // 在屏幕左边缘居中 (X: 0~14, Y: 213~253) 呈现优雅的赛博微光拉手把柄
+    // 在屏幕左边缘居中 (X: 0~12, Y: 213~253) 呈现优雅的赛博微光拉手把柄 (绝对杜绝负坐标越界)
     float pulse = 0.5f + 0.5f * sinf(pulse_phase);
     uint16_t handle_col = (pulse > 0.4f) ? COLOR_ACCENT_CYAN : 0x2354;
 
-    display.fillRoundRect(-6, 213, 20, 40, 6, 0x0842);
-    display.drawRoundRect(-6, 213, 20, 40, 6, handle_col);
+    display.fillRoundRect(0, 213, 12, 40, 5, 0x0842);
+    display.drawRoundRect(0, 213, 12, 40, 5, handle_col);
 
     display.setTextDatum(middle_center);
     display.setTextSize(1);
     display.setTextColor(0xFFFF, 0x0842);
-    display.drawString(">", 7, 233);
+    display.drawString(">", 6, 233);
 }
 
 int CameraDrawerView::handleTouch(bool is_pressed, int16_t x, int16_t y, uint32_t now_ms) {

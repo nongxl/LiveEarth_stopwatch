@@ -179,12 +179,12 @@ static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
     bool is_active = touch_state.is_edge_zooming || touch_state.is_double_tap_drag || (now - touch_state.last_zoom_ui_ms < 1200);
 
     if (!is_active) {
-        // 静止态：右侧边缘微光拉手把柄 (X: 452~466, Y: 213~253)，与左边缘抽屉拉手对称呼应
+        // 静止态：右侧边缘微光拉手把柄 (X: 454~466, Y: 213~253)，宽度 12 严格杜绝超出 466
         float pulse = 0.5f + 0.5f * sinf(now * 0.003f);
         uint16_t h_col = (pulse > 0.4f) ? 0xFDC0 : 0x2354;
 
-        display.fillRoundRect(SCREEN_WIDTH - 14, 213, 20, 40, 6, 0x0842);
-        display.drawRoundRect(SCREEN_WIDTH - 14, 213, 20, 40, 6, h_col);
+        display.fillRoundRect(SCREEN_WIDTH - 12, 213, 12, 40, 5, 0x0842);
+        display.drawRoundRect(SCREEN_WIDTH - 12, 213, 12, 40, 5, h_col);
 
         display.setTextDatum(middle_center);
         display.setTextSize(1);
@@ -259,6 +259,7 @@ void setup() {
     // 屏幕与背光设置
     M5.Display.setBrightness(180);
     M5.Display.setRotation(0);
+    M5.Display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     M5.Display.fillScreen(COLOR_BG);
 
     draw_static_hud_markers();
@@ -291,6 +292,9 @@ void setup() {
 static void transition_to_view(AppViewState new_state) {
     if (current_view_state == new_state) return;
 
+    // 状态切换时首先安全重置显示裁剪区为整屏 (0, 0, 466, 466)，消除任何局部残留
+    M5.Display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
     if (new_state == VIEW_GLOBE) {
         // 返回地球仪居中模式：停止快照拉取以节省功耗与带宽，恢复地球仪居中
         snapshot_player.stop();
@@ -301,8 +305,12 @@ static void transition_to_view(AppViewState new_state) {
             globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
         }
         current_view_state = VIEW_GLOBE;
+
+        M5.Display.startWrite();
         M5.Display.fillScreen(COLOR_BG);
         draw_static_hud_markers();
+        M5.Display.endWrite();
+
         perf.last_hud_update = 0;
         Serial.println("[State] -> VIEW_GLOBE (Centered 3D Earth)");
     } else if (new_state == VIEW_PLACE_PREVIEW) {
@@ -315,7 +323,11 @@ static void transition_to_view(AppViewState new_state) {
             globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, 220, 210.0f);
         }
         current_view_state = VIEW_PLACE_PREVIEW;
+
+        M5.Display.startWrite();
         M5.Display.fillScreen(COLOR_BG);
+        M5.Display.endWrite();
+
         preview_view.requestRedraw();
         Serial.println("[State] -> VIEW_PLACE_PREVIEW (Smooth Fly-to & Real-time Snapshot Feed)");
     } else if (new_state == VIEW_VIDEO_FULL) {
@@ -325,6 +337,11 @@ static void transition_to_view(AppViewState new_state) {
         if (p) {
             snapshot_player.loadPlace(p);
         }
+
+        M5.Display.startWrite();
+        M5.Display.fillScreen(COLOR_BG);
+        M5.Display.endWrite();
+
         video_player.requestRedraw();
         Serial.println("[State] -> VIEW_VIDEO_FULL (16:9 Max-Inscribed 406x228, Diagonal=466)");
     }
@@ -623,11 +640,13 @@ void loop() {
         preview_view.render(M5.Display, place_mgr.getSelectedPlace());
 
         // 2. 渲染下方全宽 466 的大幅避让与放大的 3D 地球仪 (推送到 X: 0, Y: 260)
-        // 关键：宽度 466 完全铺满整个表盘水平宽度，球体左右两边自然隐入手表圆形表圈，彻底消灭任何垂直切线！
+        // 关键防护：将硬件绘制剪裁区严格限定在 Y: 260 ~ 466 (高度 206) 内，彻底杜绝 320 高度画布打爆 AMOLED 显存！
+        M5.Display.setClipRect(0, 260, SCREEN_WIDTH, SCREEN_HEIGHT - 260);
         canvas.fillScreen(COLOR_BG);
         globe.render(canvas);
         place_mgr.renderMarkers(canvas, globe);
         canvas.pushSprite(0, 260);
+        M5.Display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT); // 恢复全屏裁剪区
 
         M5.Display.endWrite();
 

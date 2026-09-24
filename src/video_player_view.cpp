@@ -121,7 +121,7 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         display.drawLine(VIDEO_X, VIDEO_Y + VIDEO_H - 1, VIDEO_X, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
 
         display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1 - b_len, VIDEO_Y + VIDEO_H - 1, 0xFFFF);
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + b_len, 0xFFFF);
+        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
 
         // 水印与合规背书
         display.setTextDatum(top_left);

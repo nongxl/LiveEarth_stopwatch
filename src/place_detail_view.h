@@ -23,7 +23,7 @@ public:
     // 中等视频预览窗几何常量 (16:9 比例，宽 240，高 135，大触摸热区)
     static constexpr int16_t PREVIEW_W = 240;
     static constexpr int16_t PREVIEW_H = 135;
-    static constexpr int16_t PREVIEW_X = 113; // (466 - 240) / 2
+    static constexpr int16_t PREVIEW_X = 114; // (466 - 240) / 2 = 113 -> 114 (偶数对齐适配 AMOLED)
     static constexpr int16_t PREVIEW_Y = 122;
 
     // 点击命中检测：扩大触控判定裕度，极易点击操作
