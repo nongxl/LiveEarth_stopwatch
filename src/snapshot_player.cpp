@@ -30,6 +30,7 @@ SnapshotPlayer::SnapshotPlayer()
       last_fetch_ms(0),
       fetch_start_ms(0),
       task_running(false),
+      stop_requested(false),
       buffer_mutex(nullptr)
 {
     current_url[0] = '\0';
@@ -124,6 +125,7 @@ void SnapshotPlayer::startAsyncFetch(const char* url) {
     if (task_running) return;
 
     task_running = true;
+    stop_requested = false;
     current_state = SNAP_STATE_FETCHING;
     fetch_start_ms = millis();
 
@@ -186,7 +188,7 @@ void SnapshotPlayer::fetchTaskWorker() {
                 uint8_t temp_chunk[1024];
                 uint32_t read_start = millis();
 
-                while (http.connected() && (content_len > 0 || content_len == -1)) {
+                while (!stop_requested && http.connected() && (content_len > 0 || content_len == -1)) {
                     size_t avail = stream->available();
                     if (avail > 0) {
                         size_t to_read = (avail > sizeof(temp_chunk)) ? sizeof(temp_chunk) : avail;
@@ -342,6 +344,7 @@ void SnapshotPlayer::update(uint32_t now_ms) {
 }
 
 void SnapshotPlayer::stop() {
+    stop_requested = true;
     current_state = SNAP_STATE_IDLE;
     active_place = nullptr;
     has_decoded_frame = false;

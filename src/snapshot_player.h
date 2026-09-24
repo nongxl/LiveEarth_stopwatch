@@ -68,6 +68,7 @@ private:
     uint32_t last_fetch_ms;
     uint32_t fetch_start_ms;
     bool task_running;
+    volatile bool stop_requested;
     SemaphoreHandle_t buffer_mutex;
 
     // 异步下载实现

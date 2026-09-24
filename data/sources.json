@@ -31,5 +31,16 @@
     "permission_basis": "US Federal Government Public Domain data",
     "license": "US Public Domain",
     "redistribution_notes": "All USGS live webcams are public domain."
+  },
+  {
+    "id": "src-hko-gov",
+    "name": "Hong Kong Observatory (HKO)",
+    "tier": "TIER_A",
+    "country": "Hong Kong, China",
+    "operator": "Government of the Hong Kong Special Administrative Region",
+    "official_website": "https://www.hko.gov.hk",
+    "permission_basis": "HKSAR Government Open Data Portal (data.gov.hk)",
+    "license": "Open Government Data License",
+    "redistribution_notes": "Official public weather camera snapshots provided under data.gov.hk terms."
   }
 ]

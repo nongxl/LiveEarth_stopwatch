@@ -52,5 +52,23 @@
     "thumbnail_url": "https://static.earthcam.com/cams/tsrobo1/latest.jpg",
     "stream_type": "snapshot",
     "stream_url": "https://static.earthcam.com/cams/tsrobo1/latest.jpg"
+  },
+  {
+    "id": "cam-hk-victoria-peak",
+    "place_id": "hk-victoria-harbour",
+    "name": "Victoria Harbour from Victoria Peak",
+    "latitude": 22.2759,
+    "longitude": 114.1455,
+    "source_type": "snapshot",
+    "source_name": "Hong Kong Observatory (HKO)",
+    "source_url": "https://www.hko.gov.hk/tc/wxinfo/aws/hko_mica/vpk/latest_VPK.jpg",
+    "evidence_url": "https://data.gov.hk/tc-data/dataset/hk-hko-rss-weather-photo-vpk",
+    "permission_status": "APPROVED",
+    "permission_basis": "HKSAR Government Open Data Portal (data.gov.hk) public weather photos",
+    "last_verified": "2026-09-24T08:00:00Z",
+    "status": "ONLINE",
+    "thumbnail_url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/vpk/latest_VPK.jpg",
+    "stream_type": "snapshot",
+    "stream_url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/vpk/latest_VPK.jpg"
   }
 ]

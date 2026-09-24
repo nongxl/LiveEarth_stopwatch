@@ -13,10 +13,12 @@
     "color": 18400,
     "desc": "Japan's sacred stratovolcano standing at 3,776m. UNESCO World Heritage site celebrated for its perfect snow symmetry.",
     "hl": "Lake Kawaguchiko scenic reflection & snowy crater rim",
-    "cam_name": "Kawaguchiko Live Cam",
+    "cam_name": "Mount Fuji from Lake Kawaguchiko",
     "src": "Fujigoko TV Consortium",
     "url": "",
-    "online": false
+    "online": true,
+    "cam_source": "Fujigoko TV Official Livecam",
+    "snapshot_url": "https://images.fujigoko.tv/live/camera/kawaguchiko.jpg"
   },
   {
     "id": "cn-great-wall",
@@ -35,7 +37,8 @@
     "cam_name": "Badaling Ridge Cam",
     "src": "Beijing Heritage Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-shanghai-bund",
@@ -54,7 +57,8 @@
     "cam_name": "Huangpu River Skyline",
     "src": "Shanghai Tourism Board",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "hk-victoria-harbour",
@@ -70,10 +74,12 @@
     "color": 15999,
     "desc": "World-famous deepwater port situated between Hong Kong Island and Kowloon Peninsula, famous for its dense skyline and ferry.",
     "hl": "Tsim Sha Tsui Promenade & Symphony of Lights skyline",
-    "cam_name": "Victoria Peak Observation",
+    "cam_name": "Victoria Harbour from Victoria Peak",
     "src": "Hong Kong Observatory (HKO)",
     "url": "",
-    "online": false
+    "online": true,
+    "cam_source": "Hong Kong Observatory (HKO)",
+    "snapshot_url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/vpk/latest_VPK.jpg"
   },
   {
     "id": "jp-tokyo-shibuya",
@@ -92,7 +98,8 @@
     "cam_name": "Shibuya Scramble Cam",
     "src": "Shibuya City Council",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "np-mt-everest",
@@ -111,7 +118,8 @@
     "cam_name": "Kala Patthar Observatory",
     "src": "Ev-K2-CNR Research / Nepal Met",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "in-taj-mahal",
@@ -130,7 +138,8 @@
     "cam_name": "Taj Heritage View",
     "src": "Archaeological Survey of India",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ae-burj-khalifa",
@@ -149,7 +158,8 @@
     "cam_name": "Downtown Dubai Cam",
     "src": "Emaar Properties / Dubai Tourism",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "jo-petra-treasury",
@@ -168,7 +178,8 @@
     "cam_name": "Petra Canyon Cam",
     "src": "Petra Development and Tourism Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "il-dead-sea",
@@ -187,7 +198,8 @@
     "cam_name": "Ein Gedi Beach Cam",
     "src": "Tamar Regional Council",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "kh-angkor-wat",
@@ -206,7 +218,8 @@
     "cam_name": "Angkor Sanctuary Cam",
     "src": "APSARA National Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "my-petronas-towers",
@@ -225,7 +238,8 @@
     "cam_name": "KLCC Park Cam",
     "src": "Kuala Lumpur City Hall",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "sg-marina-bay",
@@ -244,7 +258,8 @@
     "cam_name": "Marina Promenade Cam",
     "src": "Singapore Tourism Board",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-huangshan",
@@ -263,7 +278,8 @@
     "cam_name": "Bright Summit Live",
     "src": "Huangshan Scenic Zone Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-jiuzhaigou",
@@ -282,7 +298,8 @@
     "cam_name": "Five Flower Lake Cam",
     "src": "Jiuzhaigou National Park Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-lhasa-potala",
@@ -301,7 +318,8 @@
     "cam_name": "Chakpori Hill Vista",
     "src": "Tibet Cultural Heritage Bureau",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-xian-terracotta",
@@ -320,7 +338,8 @@
     "cam_name": "Pit 1 Main Hangar",
     "src": "Emperor Qinshihuang Mausoleum Site Museum",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-guilin-karst",
@@ -339,7 +358,8 @@
     "cam_name": "Yangshuo Riverfront",
     "src": "Guilin Tourism Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-zhangjiajie",
@@ -358,7 +378,8 @@
     "cam_name": "Tianzi Mountain Peak",
     "src": "Wulingyuan Scenic Area Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-hangzhou-westlake",
@@ -377,7 +398,8 @@
     "cam_name": "Broken Bridge Live",
     "src": "Hangzhou West Lake Scenic Management",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cn-dunhuang-mogao",
@@ -396,7 +418,8 @@
     "cam_name": "Mogao Cliff Face",
     "src": "Dunhuang Academy",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "tw-taipei-101",
@@ -415,7 +438,8 @@
     "cam_name": "Elephant Mountain Cam",
     "src": "Taipei City Tourism Department",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "jp-kyoto-kiyomizu",
@@ -434,7 +458,8 @@
     "cam_name": "Otowasan Stage View",
     "src": "Kiyomizu-dera Temple Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "kr-seoul-tower",
@@ -453,7 +478,8 @@
     "cam_name": "Namsan Plaza Cam",
     "src": "Seoul Metropolitan Government",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "id-mount-bromo",
@@ -472,7 +498,8 @@
     "cam_name": "Penanjakan Ridge Cam",
     "src": "Center for Volcanology Indonesia (PVMBG)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "vn-halong-bay",
@@ -491,7 +518,8 @@
     "cam_name": "Bai Chay Bay Lookout",
     "src": "Ha Long Bay Management Department",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "mm-bagan-temples",
@@ -510,7 +538,8 @@
     "cam_name": "Shwesandaw Vista Point",
     "src": "Department of Archaeology Myanmar",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "th-bangkok-watarun",
@@ -529,7 +558,8 @@
     "cam_name": "Chao Phraya Riverside",
     "src": "Bangkok Tourism Division",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "fr-eiffel-tower",
@@ -548,7 +578,8 @@
     "cam_name": "Trocadéro Promenade Cam",
     "src": "Société d'Exploitation de la Tour Eiffel (SETE)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "it-colosseum",
@@ -567,7 +598,8 @@
     "cam_name": "Colosseo Panoramic View",
     "src": "Parco Archeologico del Colosseo",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "gr-santorini-oia",
@@ -586,7 +618,8 @@
     "cam_name": "Oia Castle Cliff Cam",
     "src": "Municipality of Thira",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "it-venice-grandcanal",
@@ -605,7 +638,8 @@
     "cam_name": "Rialto Bridge Waterfront",
     "src": "Comune di Venezia",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "uk-big-ben",
@@ -624,7 +658,8 @@
     "cam_name": "Westminster Bridge Cam",
     "src": "UK Parliamentary Estates Directorate",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ch-matterhorn",
@@ -643,7 +678,8 @@
     "cam_name": "Gornergrat Peak Live",
     "src": "Zermatt Bergbahnen AG",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "de-neuschwanstein",
@@ -662,7 +698,8 @@
     "cam_name": "Schwangau Valley Cam",
     "src": "Bavarian Palace Department",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "gr-acropolis-athens",
@@ -681,7 +718,8 @@
     "cam_name": "Philopappos Hill View",
     "src": "Hellenic Ministry of Culture",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "no-geirangerfjord",
@@ -700,7 +738,8 @@
     "cam_name": "Flydalsjuvet Outlook",
     "src": "Norwegian Public Roads Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "es-sagrada-familia",
@@ -719,7 +758,8 @@
     "cam_name": "Plaça de Gaudí Cam",
     "src": "Junta Constructora del Temple Expiatori",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "fr-mont-blanc",
@@ -738,7 +778,8 @@
     "cam_name": "Aiguille du Midi 3842m",
     "src": "Compagnie du Mont-Blanc",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ru-kremlin-redsquare",
@@ -757,7 +798,8 @@
     "cam_name": "Zaryadye Park Lookout",
     "src": "Moscow City Tourism",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "no-preikestolen",
@@ -776,7 +818,8 @@
     "cam_name": "Lysefjorden Viewpoint",
     "src": "Stavanger Tourist Association",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "is-reynisfjara",
@@ -795,7 +838,8 @@
     "cam_name": "Vik i Myrdal Coast",
     "src": "Icelandic Road and Coastal Administration",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "va-st-peters",
@@ -814,7 +858,8 @@
     "cam_name": "Vatican Media Live",
     "src": "Vatican Communication Secretariat",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "es-alhambra",
@@ -833,7 +878,8 @@
     "cam_name": "San Nicolás Mirador",
     "src": "Patronato de la Alhambra y Generalife",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "uk-stonehenge",
@@ -852,7 +898,8 @@
     "cam_name": "Salisbury Plain Live",
     "src": "English Heritage",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "gr-meteora",
@@ -871,7 +918,8 @@
     "cam_name": "Kalabaka Valley Cam",
     "src": "Hellenic National Tourism Organization",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ch-jungfraujoch",
@@ -890,7 +938,8 @@
     "cam_name": "Jungfrau Sphinx Live",
     "src": "Jungfraubahn Holding AG",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "nl-zaanse-schans",
@@ -909,7 +958,8 @@
     "cam_name": "Zaan Riverbank",
     "src": "Zaanse Schans Museum Foundation",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cz-prague-charles",
@@ -928,7 +978,8 @@
     "cam_name": "Vltava Riverfront Cam",
     "src": "City of Prague Tourism",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "it-pisa-tower",
@@ -947,7 +998,8 @@
     "cam_name": "Miracoli Square View",
     "src": "Opera della Primaziale Pisana",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "tr-cappadocia",
@@ -966,7 +1018,8 @@
     "cam_name": "Göreme National Park",
     "src": "Turkish Ministry of Culture and Tourism",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "no-svalbard-vault",
@@ -985,7 +1038,8 @@
     "cam_name": "Longyearbyen Tundra",
     "src": "NordGen / Government of Norway",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-times-square",
@@ -1001,10 +1055,12 @@
     "color": 63519,
     "desc": "Major commercial intersection, tourist destination, entertainment center, and neighborhood in Midtown Manhattan.",
     "hl": "Towering digital Broadway billboards, yellow cabs & neon street glow",
-    "cam_name": "Broadway & 46th Cam",
+    "cam_name": "Times Square Broadway South View",
     "src": "Times Square Alliance",
     "url": "",
-    "online": false
+    "online": true,
+    "cam_source": "EarthCam Times Square Public Feed",
+    "snapshot_url": "https://static.earthcam.com/cams/tsrobo1/latest.jpg"
   },
   {
     "id": "us-golden-gate",
@@ -1023,7 +1079,8 @@
     "cam_name": "Hawk Hill Marin Vista",
     "src": "Golden Gate Bridge Highway & Transportation District",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-grand-canyon",
@@ -1042,7 +1099,8 @@
     "cam_name": "Yavapai Point Live",
     "src": "National Park Service (NPS)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-yellowstone-geyser",
@@ -1061,7 +1119,8 @@
     "cam_name": "Upper Geyser Basin Cam",
     "src": "National Park Service (NPS)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ca-niagara-falls",
@@ -1080,7 +1139,8 @@
     "cam_name": "Table Rock Welcome Cam",
     "src": "The Niagara Parks Commission",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-kilauea-volcano",
@@ -1096,10 +1156,12 @@
     "color": 63488,
     "desc": "Shield volcano on the Big Island of Hawaii, historically one of the most active and intensely monitored volcanoes on the planet.",
     "hl": "Halemaʻumaʻu caldera crater floor lava lake fountaining & glowing sulfur vents",
-    "cam_name": "K2cam Caldera Live",
+    "cam_name": "Kilauea Caldera from HVO Observation Tower",
     "src": "USGS Hawaiian Volcano Observatory",
     "url": "https://volcanoes.usgs.gov/observatories/hvo/cams/K2cam/images/M.jpg",
-    "online": true
+    "online": true,
+    "cam_source": "USGS Hawaiian Volcano Observatory",
+    "snapshot_url": "https://volcanoes.usgs.gov/observatories/hvo/cams/K2cam/images/M.jpg"
   },
   {
     "id": "ca-banff-lakelouise",
@@ -1118,7 +1180,8 @@
     "cam_name": "Lake Louise Shoreline",
     "src": "Parks Canada",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "mx-chichen-itza",
@@ -1137,7 +1200,8 @@
     "cam_name": "Chichen Itza Esplanade",
     "src": "Instituto Nacional de Antropología e Historia (INAH)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-cape-canaveral",
@@ -1156,7 +1220,8 @@
     "cam_name": "Pad 39A Tracking Cam",
     "src": "NASA / Kennedy Space Center",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-yosemite-valley",
@@ -1175,7 +1240,8 @@
     "cam_name": "Tunnel View Panoramic",
     "src": "Yosemite Conservancy / NPS",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-denali-peak",
@@ -1194,7 +1260,8 @@
     "cam_name": "Eielson Ridge Cam",
     "src": "National Park Service (NPS)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-zion-canyon",
@@ -1213,7 +1280,8 @@
     "cam_name": "Grotto Canyon Floor",
     "src": "National Park Service (NPS)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-waikiki-beach",
@@ -1232,7 +1300,8 @@
     "cam_name": "Kuhio Beach Promenade",
     "src": "Hawaii Department of Land and Natural Resources",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ca-jasper-icefield",
@@ -1251,7 +1320,8 @@
     "cam_name": "Icefield Centre Lookout",
     "src": "Parks Canada",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-monument-valley",
@@ -1270,7 +1340,8 @@
     "cam_name": "Navajo Tribal Park Cam",
     "src": "Navajo Nation Parks & Recreation",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-seattle-space-needle",
@@ -1289,7 +1360,8 @@
     "cam_name": "Seattle Center Panorama",
     "src": "Space Needle Corporation",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-miami-south-beach",
@@ -1308,7 +1380,8 @@
     "cam_name": "Ocean Drive Promenade",
     "src": "City of Miami Beach",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-las-vegas-strip",
@@ -1327,7 +1400,8 @@
     "cam_name": "Bellagio Lake Cam",
     "src": "Clark County Tourism",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "pe-machu-picchu",
@@ -1346,7 +1420,8 @@
     "cam_name": "Intihuatana Ridge View",
     "src": "Ministerio de Cultura del Perú",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "br-christ-redeemer",
@@ -1365,7 +1440,8 @@
     "cam_name": "Corcovado Summit Cam",
     "src": "Santuário Cristo Redentor / ICMBio",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ar-iguazu-falls",
@@ -1384,7 +1460,8 @@
     "cam_name": "Devil's Throat Catwalk",
     "src": "Administración de Parques Nacionales",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cl-atacama-alma",
@@ -1403,7 +1480,8 @@
     "cam_name": "Chajnantor Plateau Cam",
     "src": "European Southern Observatory (ESO) / ALMA",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cl-easter-island",
@@ -1422,7 +1500,8 @@
     "cam_name": "Ahu Tongariki Coastal",
     "src": "CONAF Parque Nacional Rapa Nui",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "bo-salar-uyuni",
@@ -1441,7 +1520,8 @@
     "cam_name": "Colchani Salt Flat Live",
     "src": "Viceministerio de Turismo Bolivia",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ar-perito-moreno",
@@ -1460,7 +1540,8 @@
     "cam_name": "Brazo Rico Observation",
     "src": "Parques Nacionales Argentina",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "cl-torres-del-paine",
@@ -1479,7 +1560,8 @@
     "cam_name": "Lake Pehoe Lookout",
     "src": "CONAF Chile",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ec-galapagos",
@@ -1498,7 +1580,8 @@
     "cam_name": "Charles Darwin Research Station",
     "src": "Parque Nacional Galápagos",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "br-copacabana",
@@ -1517,7 +1600,8 @@
     "cam_name": "Avenida Atlântica Cam",
     "src": "Prefeitura do Rio de Janeiro",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "eg-giza-pyramids",
@@ -1536,7 +1620,8 @@
     "cam_name": "Giza Plateau Panoramic",
     "src": "Ministry of Tourism and Antiquities Egypt",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "zm-victoria-falls",
@@ -1555,7 +1640,8 @@
     "cam_name": "Zambezi Gorge Vista",
     "src": "Zambia Wildlife Authority / Zimbabwe Parks",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "za-table-mountain",
@@ -1574,7 +1660,8 @@
     "cam_name": "Table Mountain Aerial",
     "src": "Table Mountain Aerial Cableway / SANParks",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "tz-serengeti",
@@ -1593,7 +1680,8 @@
     "cam_name": "Seronera Valley Waterhole",
     "src": "Tanzania National Parks (TANAPA)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "tz-kilimanjaro",
@@ -1612,7 +1700,8 @@
     "cam_name": "Kibo Summit Vista",
     "src": "Kilimanjaro National Park Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "ma-marrakech-jemaa",
@@ -1631,7 +1720,8 @@
     "cam_name": "Medina Rooftop Panorama",
     "src": "Marrakech Tourism Council",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "tz-ngorongoro",
@@ -1650,7 +1740,8 @@
     "cam_name": "Crater Rim Viewpoint",
     "src": "Ngorongoro Conservation Area Authority (NCAA)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "na-sossusvlei",
@@ -1669,7 +1760,8 @@
     "cam_name": "Dune 45 Desert Cam",
     "src": "Ministry of Environment, Forestry and Tourism Namibia",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "eg-luxor-karnak",
@@ -1688,7 +1780,8 @@
     "cam_name": "Hypostyle Hall Gateway",
     "src": "Supreme Council of Antiquities Egypt",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "sa-alula-hegra",
@@ -1707,7 +1800,8 @@
     "cam_name": "Qasr al-Farid Desert Vista",
     "src": "Royal Commission for AlUla (RCU)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "au-sydney-opera",
@@ -1726,7 +1820,8 @@
     "cam_name": "Circular Quay Promenade",
     "src": "Sydney Opera House Trust",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "au-uluru-rock",
@@ -1745,7 +1840,8 @@
     "cam_name": "Uluru Sunset Lookout",
     "src": "Parks Australia",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "au-great-barrier-reef",
@@ -1764,7 +1860,8 @@
     "cam_name": "Heart Reef Live Cam",
     "src": "GBRMPA Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "nz-milford-sound",
@@ -1783,7 +1880,8 @@
     "cam_name": "Milford Wharf Live",
     "src": "Department of Conservation NZ",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "us-hawaii-maunakea",
@@ -1802,7 +1900,8 @@
     "cam_name": "MLcam Summit Live",
     "src": "USGS Hawaiian Volcano Observatory",
     "url": "https://volcanoes.usgs.gov/observatories/hvo/cams/MLcam/images/M.jpg",
-    "online": true
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "au-twelve-apostles",
@@ -1821,7 +1920,8 @@
     "cam_name": "Castle Rock Boardwalk",
     "src": "Parks Victoria",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "nz-mount-cook",
@@ -1840,7 +1940,8 @@
     "cam_name": "Hooker Valley Glacier",
     "src": "Department of Conservation NZ",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "no-tromso-aurora",
@@ -1859,7 +1960,8 @@
     "cam_name": "Fjellheisen Mountain Cam",
     "src": "UiT The Arctic University of Norway",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "fi-rovaniemi-arctic",
@@ -1878,7 +1980,8 @@
     "cam_name": "Santa Claus Village Live",
     "src": "Rovaniemi Tourism Authority",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   },
   {
     "id": "aq-mcmurdo-station",
@@ -1897,6 +2000,7 @@
     "cam_name": "Scott Base / McMurdo",
     "src": "United States Antarctic Program (USAP)",
     "url": "",
-    "online": false
+    "online": false,
+    "snapshot_url": ""
   }
 ]

@@ -22,11 +22,11 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0x47E0,
         "Japan's sacred stratovolcano standing at 3,776m. UNESCO World Heritage site celebrated for its perfect snow symmetry.",
         "Lake Kawaguchiko scenic reflection & snowy crater rim",
-        "Kawaguchiko Live Cam",
+        "Mount Fuji from Lake Kawaguchiko",
         "Fujigoko TV Consortium",
         "",
         1,
-        false
+        true
     },
     {
         "cn-great-wall",
@@ -82,11 +82,11 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0x3E7F,
         "World-famous deepwater port situated between Hong Kong Island and Kowloon Peninsula, famous for its dense skyline and ferry.",
         "Tsim Sha Tsui Promenade & Symphony of Lights skyline",
-        "Victoria Peak Observation",
+        "Victoria Harbour from Victoria Peak",
         "Hong Kong Observatory (HKO)",
         "",
         1,
-        false
+        true
     },
     {
         "jp-tokyo-shibuya",
@@ -1062,11 +1062,11 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0xF81F,
         "Major commercial intersection, tourist destination, entertainment center, and neighborhood in Midtown Manhattan.",
         "Towering digital Broadway billboards, yellow cabs & neon street glow",
-        "Broadway & 46th Cam",
+        "Times Square Broadway South View",
         "Times Square Alliance",
         "",
         1,
-        false
+        true
     },
     {
         "us-golden-gate",
@@ -1162,7 +1162,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         0xF800,
         "Shield volcano on the Big Island of Hawaii, historically one of the most active and intensely monitored volcanoes on the planet.",
         "Halemaʻumaʻu caldera crater floor lava lake fountaining & glowing sulfur vents",
-        "K2cam Caldera Live",
+        "Kilauea Caldera from HVO Observation Tower",
         "USGS Hawaiian Volcano Observatory",
         "https://volcanoes.usgs.gov/observatories/hvo/cams/K2cam/images/M.jpg",
         1,
@@ -1906,7 +1906,7 @@ extern const PlaceLocation GLOBAL_PLACES[] = {
         "USGS Hawaiian Volcano Observatory",
         "https://volcanoes.usgs.gov/observatories/hvo/cams/MLcam/images/M.jpg",
         1,
-        true
+        false
     },
     {
         "au-twelve-apostles",

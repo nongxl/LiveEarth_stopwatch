@@ -167,9 +167,18 @@ static void update_dynamic_hud() {
         M5.Display.drawString(place_detail, SCREEN_CENTER_X, 412);
     }
 
-    char perf_buf[64];
-    snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | DRAG ROTATE | RIGHT SLIDE ZOOM", perf.current_fps);
-    M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
+    // 4. 网络与性能状态栏 HUD (底部 Y: 426)
+    char perf_buf[80];
+    if (network_mgr.isConnected()) {
+        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | WIFI ONLINE (%ddBm) | DRAG ROTATE", perf.current_fps, network_mgr.getRSSI());
+        M5.Display.setTextColor(0x07E0, COLOR_BG); // 纯绿正常
+    } else if (network_mgr.getState() == WIFI_STATE_CONNECTING) {
+        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | WIFI CONNECTING... | DRAG ROTATE", perf.current_fps);
+        M5.Display.setTextColor(0xFDC0, COLOR_BG); // 暖金重试
+    } else {
+        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | OFFLINE ARCHIVE | DRAG ROTATE", perf.current_fps);
+        M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG); // 优雅离线
+    }
     M5.Display.drawString(perf_buf, SCREEN_CENTER_X, 426);
 }
 
