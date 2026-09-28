@@ -21,7 +21,7 @@ NetworkManager::NetworkManager()
 
 bool NetworkManager::hasSavedConfig() {
     Preferences prefs;
-    if (!prefs.begin(NVS_NAMESPACE, true)) {
+    if (!prefs.begin(NVS_NAMESPACE, false)) {
         return false;
     }
     String s = prefs.getString(NVS_KEY_SSID, "");
@@ -31,7 +31,7 @@ bool NetworkManager::hasSavedConfig() {
 
 bool NetworkManager::loadConfig(char* ssid, size_t ssid_len, char* password, size_t pass_len) {
     Preferences prefs;
-    if (!prefs.begin(NVS_NAMESPACE, true)) {
+    if (!prefs.begin(NVS_NAMESPACE, false)) {
         return false;
     }
     String s = prefs.getString(NVS_KEY_SSID, "");
@@ -93,6 +93,13 @@ void NetworkManager::init() {
     WiFi.disconnect(true);
     delay(50);
 
+    // 注册系统级 Wi-Fi 扫描完成事件
+    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (event == ARDUINO_EVENT_WIFI_SCAN_DONE) {
+            network_mgr.onScanCompleted(info.wifi_scan_done.number);
+        }
+    });
+
     // 优先读取 NVS 中存储的 Wi-Fi
     if (!connectSaved()) {
         Serial.println("[Network] Awaiting user Wi-Fi configuration via GUI.");
@@ -141,72 +148,75 @@ int8_t NetworkManager::getRSSI() const {
 }
 
 void NetworkManager::startScan(bool async) {
-    Serial.println("[Network] Starting Wi-Fi scan...");
-    scanned_networks.clear();
+    Serial.println("[Network] Triggering Wi-Fi scan...");
     is_scanning = true;
     WiFi.scanDelete();
-    WiFi.scanNetworks(async, true); // show_hidden = true
+    WiFi.scanNetworks(async, true);
+}
+
+void NetworkManager::onScanCompleted(int16_t status) {
+    Serial.printf("[Network] Event SCAN_DONE triggered: found %d networks.\n", status);
+    if (status <= 0) {
+        is_scanning = false;
+        return;
+    }
+
+    scanned_networks.clear();
+    for (int i = 0; i < status; i++) {
+        String cur_ssid = WiFi.SSID(i);
+        if (cur_ssid.length() == 0) continue; // 过滤无名广播
+
+        int32_t cur_rssi = WiFi.RSSI(i);
+        bool cur_open = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
+
+        // 去重合并，保留信号更强的一个
+        bool exist = false;
+        for (auto& item : scanned_networks) {
+            if (strcmp(item.ssid, cur_ssid.c_str()) == 0) {
+                exist = true;
+                if (cur_rssi > item.rssi) {
+                    item.rssi = cur_rssi;
+                    item.is_open = cur_open;
+                }
+                break;
+            }
+        }
+
+        if (!exist && scanned_networks.size() < 30) {
+            ScannedWifiItem item;
+            strncpy(item.ssid, cur_ssid.c_str(), sizeof(item.ssid) - 1);
+            item.ssid[sizeof(item.ssid) - 1] = '\0';
+            item.rssi = cur_rssi;
+            item.is_open = cur_open;
+            scanned_networks.push_back(item);
+        }
+    }
+
+    // 按信号强度降序排序
+    std::sort(scanned_networks.begin(), scanned_networks.end(), 
+              [](const ScannedWifiItem& a, const ScannedWifiItem& b) {
+                  return a.rssi > b.rssi;
+              });
+
+    Serial.printf("[Network] Successfully collected %u unique Wi-Fi SSIDs.\n", (unsigned int)scanned_networks.size());
+    WiFi.scanDelete();
+    is_scanning = false;
 }
 
 bool NetworkManager::isScanCompleted() {
+    if (!is_scanning) return true;
     int16_t status = WiFi.scanComplete();
     if (status >= 0) {
-        if (is_scanning) {
-            is_scanning = false;
-            scanned_networks.clear();
-            Serial.printf("[Network] Scan complete! Found %d networks.\n", status);
-
-            for (int i = 0; i < status; i++) {
-                String cur_ssid = WiFi.SSID(i);
-                if (cur_ssid.length() == 0) continue; // 过滤无名隐藏广播
-
-                int32_t cur_rssi = WiFi.RSSI(i);
-                bool cur_open = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
-
-                // 去重合并，保留信号更强的一个
-                bool exist = false;
-                for (auto& item : scanned_networks) {
-                    if (strcmp(item.ssid, cur_ssid.c_str()) == 0) {
-                        exist = true;
-                        if (cur_rssi > item.rssi) {
-                            item.rssi = cur_rssi;
-                            item.is_open = cur_open;
-                        }
-                        break;
-                    }
-                }
-
-                if (!exist && scanned_networks.size() < 30) {
-                    ScannedWifiItem item;
-                    strncpy(item.ssid, cur_ssid.c_str(), sizeof(item.ssid) - 1);
-                    item.ssid[sizeof(item.ssid) - 1] = '\0';
-                    item.rssi = cur_rssi;
-                    item.is_open = cur_open;
-                    scanned_networks.push_back(item);
-                }
-            }
-
-            // 按信号强度降序排序
-            std::sort(scanned_networks.begin(), scanned_networks.end(), 
-                      [](const ScannedWifiItem& a, const ScannedWifiItem& b) {
-                          return a.rssi > b.rssi;
-                      });
-
-            WiFi.scanDelete();
-        }
-        return true;
-    } else if (status == WIFI_SCAN_RUNNING) {
-        return false;
-    } else {
-        // WIFI_SCAN_FAILED
-        is_scanning = false;
+        onScanCompleted(status);
         return true;
     }
+    return false;
 }
 
 int NetworkManager::getScannedCount() {
     return (int)scanned_networks.size();
 }
+
 
 void NetworkManager::handleStateTransition(WifiState new_state) {
     if (current_state == new_state) return;

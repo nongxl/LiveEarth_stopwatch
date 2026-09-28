@@ -391,10 +391,16 @@ void loop() {
         was_wifi_cfg_active = true;
         auto detail = M5.Touch.getDetail(0);
         wifi_config_view.handleTouch(detail.isPressed(), detail.x, detail.y, now);
-        wifi_config_view.render(M5.Display);
-        delay(10);
+        
+        static uint32_t last_cfg_render_ms = 0;
+        if (now - last_cfg_render_ms >= 33) { // 30 FPS 平滑渲染
+            last_cfg_render_ms = now;
+            wifi_config_view.render(M5.Display);
+        }
+        delay(6);
         return;
     } else if (was_wifi_cfg_active) {
+
         // 刚从配网页面关闭进入地球仪，清屏并重绘 HUD 确保无任何残留
         was_wifi_cfg_active = false;
         M5.Display.fillScreen(COLOR_BG);

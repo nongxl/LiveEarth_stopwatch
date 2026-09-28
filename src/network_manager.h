@@ -37,6 +37,7 @@ public:
 
     // 扫描网络
     void startScan(bool async = true);
+    void onScanCompleted(int16_t status);
     bool isScanCompleted();
     int getScannedCount();
     const std::vector<ScannedWifiItem>& getScannedList() const { return scanned_networks; }
