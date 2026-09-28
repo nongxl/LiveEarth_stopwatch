@@ -11,6 +11,8 @@
 #include "network_manager.h"
 #include "snapshot_player.h"
 #include "camera_drawer_view.h"
+#include "wifi_config_view.h"
+
 
 // -------------------------------------------------------------
 // Global Rendering & Engine State
@@ -293,7 +295,18 @@ void setup() {
     perf.last_frame_time = millis();
     perf.last_sun_update = millis();
     perf.last_hud_update = millis();
+
+    // 初始化 Wi-Fi 配网与全键盘组件
+    wifi_config_view.init();
+    if (!network_mgr.hasSavedConfig()) {
+        Serial.println("[Boot] No Wi-Fi credentials in NVS. Launching Wi-Fi config view.");
+        wifi_config_view.open(false);
+    } else {
+        Serial.println("[Boot] Found saved Wi-Fi in NVS. Starting auto-connect check.");
+        wifi_config_view.open(true);
+    }
 }
+
 
 // -------------------------------------------------------------
 // Helper: 状态转场函数
@@ -370,6 +383,25 @@ void loop() {
     // 网络状态机与快照轮询更新 (非阻塞后台维持)
     network_mgr.update(now);
     snapshot_player.update(now);
+
+    // Wi-Fi 配网界面生命周期管理
+    wifi_config_view.update(now);
+    static bool was_wifi_cfg_active = false;
+    if (wifi_config_view.isActive()) {
+        was_wifi_cfg_active = true;
+        auto detail = M5.Touch.getDetail(0);
+        wifi_config_view.handleTouch(detail.isPressed(), detail.x, detail.y, now);
+        wifi_config_view.render(M5.Display);
+        delay(10);
+        return;
+    } else if (was_wifi_cfg_active) {
+        // 刚从配网页面关闭进入地球仪，清屏并重绘 HUD 确保无任何残留
+        was_wifi_cfg_active = false;
+        M5.Display.fillScreen(COLOR_BG);
+        draw_static_hud_markers();
+        perf.last_hud_update = 0;
+    }
+
 
     // 1. 每 2 秒微调时间并更新太阳直射点 (后台持续解算)
     if (now - perf.last_sun_update >= 2000) {
@@ -541,9 +573,13 @@ void loop() {
                                         Serial.printf("[Touch Hit] Focus: %s (%s)\n", p->name, p->country);
                                     }
                                 }
+                            } else if (touch_state.start_y >= 418 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
+                                // 点击底部 Wi-Fi 状态栏：直接进入 Wi-Fi 配置界面
+                                wifi_config_view.open(false);
                             } else if (touch_state.start_y >= 390 && abs(touch_state.start_x - SCREEN_CENTER_X) < 140) {
                                 // 点击底部卡片亦可进入预览模式
                                 transition_to_view(VIEW_PLACE_PREVIEW);
+
                             } else if (time_since_last_tap < 380) {
                                 // 双击地球仪空白处：快速在 1.0x 全景与 2.5x 超清大洲特写之间平滑切换！
                                 float current_z = globe.getZoom();

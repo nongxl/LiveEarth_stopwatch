@@ -251,16 +251,26 @@ void SnapshotPlayer::decodeAndCacheFrame(M5GFX& display) {
     if (!frame_buffer || buffer_size == 0) return;
 
     if (xSemaphoreTake(buffer_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        // 1. 尝试硬件标准基线 Baseline JPEG 解码
-        bool ok = canvas_fullscreen.drawJpg(frame_buffer, buffer_size, 0, 0, 406, 228);
+        int img_w = 0, img_h = 0, channels = 0;
+        stbi_info_from_memory(frame_buffer, (int)buffer_size, &img_w, &img_h, &channels);
+
+        float sx_full = (img_w > 0) ? (406.0f / (float)img_w) : 1.0f;
+        float sy_full = (img_h > 0) ? (228.0f / (float)img_h) : 1.0f;
+        float sx_prev = (img_w > 0) ? (240.0f / (float)img_w) : 1.0f;
+        float sy_prev = (img_h > 0) ? (135.0f / (float)img_h) : 1.0f;
+
+        // 1. 尝试硬件标准基线 Baseline JPEG 解码 (按原图真实比例全局缩放到 406x228, 拒绝局部裁剪)
+        canvas_fullscreen.fillScreen(0x0000);
+        bool ok = canvas_fullscreen.drawJpg(frame_buffer, buffer_size, 0, 0, 406, 228, 0, 0, sx_full, sy_full);
         if (ok) {
-            canvas_preview.drawJpg(frame_buffer, buffer_size, 0, 0, 240, 135);
+            canvas_preview.fillScreen(0x0000);
+            canvas_preview.drawJpg(frame_buffer, buffer_size, 0, 0, 240, 135, 0, 0, sx_prev, sy_prev);
             has_decoded_frame = true;
-            Serial.printf("[SnapshotPlayer] [Baseline JPEG] Frame #%u cached into Canvas.\n", frame_seq);
+            Serial.printf("[SnapshotPlayer] [Baseline JPEG] Frame #%u (%dx%d -> 406x228) scaled into Canvas.\n", frame_seq, img_w, img_h);
         } else {
             // 2. 硬件不支持（如 Progressive JPEG），使用 PSRAM STB 全功能解码器
-            int img_w = 0, img_h = 0, channels = 0;
             uint8_t* rgb = stbi_load_from_memory(frame_buffer, (int)buffer_size, &img_w, &img_h, &channels, 3);
+
             if (rgb && img_w > 0 && img_h > 0) {
                 // 写入全屏视窗 Canvas (406x228)
                 canvas_fullscreen.startWrite();

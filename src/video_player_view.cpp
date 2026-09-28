@@ -123,14 +123,16 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1 - b_len, VIDEO_Y + VIDEO_H - 1, 0xFFFF);
         display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
 
-        // 水印与合规背书
-        display.setTextDatum(top_left);
-        display.setTextColor(0x7BEF, 0x0821);
+        // 水印与合规背书 (移到视频视窗上方，绝不遮挡视频内容)
+        display.setTextDatum(middle_center);
+        display.setTextSize(1);
+        display.setTextColor(0x7BEF, COLOR_BG);
         char wm_buf[64];
         snprintf(wm_buf, sizeof(wm_buf), "FEED: %s", place->cam_source);
-        display.drawString(wm_buf, VIDEO_X + 12, VIDEO_Y + 10);
+        display.drawString(wm_buf, SCREEN_CENTER_X, 108);
 
         // 3. 底部弧形控制提示 (Y: 365 ~ 430)
+
         display.setTextDatum(middle_center);
         display.setTextColor(0x7BEF, COLOR_BG);
         display.drawString("DIAGONAL: 466px (MAX INSCRIBED 16:9)", SCREEN_CENTER_X, 375);

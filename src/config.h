@@ -38,15 +38,10 @@
 #define SERIAL_BAUD_RATE     115200
 #define STATUS_UPDATE_INTERVAL_MS 1000
 
-// Wi-Fi & Network Configuration (Offline-first by default)
-#ifndef WIFI_SSID
-#define WIFI_SSID            "test_2.4G"        // 用户可直接在此处或编译参数中填写 Wi-Fi SSID
-#endif
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD        "GXcc550771"        // Wi-Fi 密码
-#endif
-#define WIFI_CONNECT_TIMEOUT_MS 10000
+// Wi-Fi & Network Configuration (Dynamically saved to NVS)
+#define WIFI_CONNECT_TIMEOUT_MS 9000
 #define WIFI_RETRY_INTERVAL_MS  20000
+
 
 // Snapshot Stream Engine Settings
 #define SNAPSHOT_REFRESH_INTERVAL_MS 4500   // 4.5秒定时轮询最新现场动态帧
