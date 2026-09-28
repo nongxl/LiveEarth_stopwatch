@@ -63,13 +63,17 @@ private:
     uint32_t last_char_input_ms;
 
     // 倒梯形按键阵列定义
-    static const size_t MAX_KEYS = 35; // 4 行精简按键阵列
+    static const size_t MAX_KEYS = 35; // 3 行大按键 + 底部半圆按键
     KeyButton keys[MAX_KEYS];
     size_t key_count;
     int pressed_key_idx;
     uint32_t key_press_feedback_ms;
     uint32_t press_start_ms;
     bool is_long_press_triggered;
+
+    // 输入框右侧 DEL 键交互控制
+    bool is_del_pressed;
+    uint32_t last_del_repeat_ms;
 
 
     // SSID 列表滚动与触控
