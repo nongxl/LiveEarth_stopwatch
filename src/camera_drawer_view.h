@@ -38,10 +38,20 @@ public:
     // 请求滚动到当前选中的地点项
     void scrollToSelected(int selected_idx);
 
+    // 过滤功能：仅查看拥有 LIVE 实时流的目标
+    bool isFilterLiveOnly() const { return filter_live_only; }
+    void setFilterLiveOnly(bool live_only);
+    void toggleFilter();
+
+    size_t getFilteredCount() const;
+    int getFilteredPlaceIndex(int filtered_row) const;
+
 private:
     DrawerAnimState state;
     uint32_t anim_start_ms;
     float current_slide_x; // 当前 X 轴滑出位置: -DRAWER_WIDTH ~ 0
+
+    bool filter_live_only; // 是否仅显示 LIVE 在线摄像头
 
     // 列表滚动状态
     float scroll_y;
