@@ -401,9 +401,11 @@ void WifiConfigView::renderSSIDList(M5GFX& display) {
         return;
     }
 
-    const int ITEM_H = 46;
+    const int ITEM_H = 50;
     const int LIST_TOP = 82;
     const int LIST_BOTTOM = 410;
+    const int card_w = 326;
+    const int card_x = (SCREEN_WIDTH - card_w) / 2;
 
     for (int i = 0; i < count; i++) {
         int item_y = LIST_TOP + (int)list_scroll_y + i * (ITEM_H + 4);
@@ -411,46 +413,65 @@ void WifiConfigView::renderSSIDList(M5GFX& display) {
 
         const auto& item = list[i];
 
-        // 卡片底板
-        int card_w = 340;
-        int card_x = (SCREEN_WIDTH - card_w) / 2;
+        // 1. 卡片底板 (326x50, 紧凑黄金比例)
         display.fillRoundRect(card_x, item_y, card_w, ITEM_H, 10, 0x0821);
         display.drawRoundRect(card_x, item_y, card_w, ITEM_H, 10, 0x1B55);
 
-        // 信号指示 (4格柱状图)
-        int rssi_bar_x = card_x + 14;
-        int rssi_bar_y = item_y + 30;
+        // 2. 信号指示 (4格科技天线柱)
+        int rssi_bar_x = card_x + 12;
+        int rssi_bar_y = item_y + 33;
         int bars = 1;
-        if (item.rssi > -60) bars = 4;
-        else if (item.rssi > -70) bars = 3;
-        else if (item.rssi > -80) bars = 2;
+        uint16_t sig_col = 0x7BEF;
+        if (item.rssi >= -60) {
+            bars = 4;
+            sig_col = 0x07E0; // 极佳：纯绿
+        } else if (item.rssi >= -70) {
+            bars = 3;
+            sig_col = 0x27E0; // 良好：鲜绿
+        } else if (item.rssi >= -80) {
+            bars = 2;
+            sig_col = 0xFDC0; // 一般：暖金
+        } else {
+            bars = 1;
+            sig_col = 0xF940; // 较弱：暖橙
+        }
 
         for (int b = 0; b < 4; b++) {
-            int bh = (b + 1) * 3 + 2;
-            uint16_t b_col = (b < bars) ? 0x07E0 : 0x2965;
+            int bh = (b + 1) * 3 + 3;
+            uint16_t b_col = (b < bars) ? sig_col : 0x2124;
             display.fillRect(rssi_bar_x + b * 4, rssi_bar_y - bh, 3, bh, b_col);
         }
 
-        // SSID 名称
+        // 3. 信号数值显示 (例如 -52dB, -68dB)
+        display.setFont(&fonts::Font0);
+        display.setTextDatum(middle_left);
+        display.setTextSize(1);
+        display.setTextColor(sig_col, 0x0821);
+        char rssi_str[16];
+        snprintf(rssi_str, sizeof(rssi_str), "%ddB", (int)item.rssi);
+        display.drawString(rssi_str, card_x + 32, item_y + ITEM_H / 2);
+
+        // 4. SSID 名称 (大号中文 efontCN_14 字体，清晰支持全中文/特殊符号)
+        display.setFont(&fonts::efontCN_14);
         display.setTextDatum(middle_left);
         display.setTextSize(1);
         display.setTextColor(0xFFFF, 0x0821);
 
-        char disp_ssid[26];
-        strncpy(disp_ssid, item.ssid, sizeof(disp_ssid) - 1);
-        disp_ssid[sizeof(disp_ssid) - 1] = '\0';
-        display.drawString(disp_ssid, card_x + 38, item_y + ITEM_H / 2);
+        // 右侧留出锁图标区域 (约 45px)
+        display.drawString(item.ssid, card_x + 78, item_y + ITEM_H / 2);
 
-        // 加密标识
+        // 5. 加密标识
+        display.setFont(&fonts::Font0);
         display.setTextDatum(middle_right);
         if (item.is_open) {
             display.setTextColor(0x07E0, 0x0821);
-            display.drawString("OPEN", card_x + card_w - 12, item_y + ITEM_H / 2);
+            display.drawString("OPEN", card_x + card_w - 10, item_y + ITEM_H / 2);
         } else {
             display.setTextColor(0xFDC0, 0x0821);
-            display.drawString("[LOCK]", card_x + card_w - 12, item_y + ITEM_H / 2);
+            display.drawString("[LOCK]", card_x + card_w - 10, item_y + ITEM_H / 2);
         }
     }
+
 }
 
 void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
@@ -464,13 +485,16 @@ void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
     display.setTextColor(0x7BEF, 0x0842);
     display.drawString("< SSID", 84, 38);
 
-    char title_buf[48];
-    snprintf(title_buf, sizeof(title_buf), "SSID: %s", selected_ssid);
+    char title_buf[64];
+    snprintf(title_buf, sizeof(title_buf), "%s", selected_ssid);
+    display.setFont(&fonts::efontCN_14);
     display.setTextDatum(middle_center);
     display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
     display.drawString(title_buf, SCREEN_CENTER + 40, 38);
+    display.setFont(&fonts::Font0);
 
     // 2. 密码输入显示框 (Y: 58 ~ 102, 宽 340, 高 44, 圆角 10)
+
     int16_t box_w = 340;
     int16_t box_h = 44;
     int16_t box_x = (SCREEN_WIDTH - box_w) / 2;
@@ -735,7 +759,7 @@ bool WifiConfigView::handleTouchSSIDList(bool is_pressed, int16_t x, int16_t y, 
             // 限制滚动边界
             const auto& list = network_mgr.getScannedList();
             int count = (int)list.size();
-            float min_scroll = -(float)max(0, count * 50 - 320);
+            float min_scroll = -(float)max(0, count * 54 - 320);
             if (target_scroll_y > 0.0f) target_scroll_y = 0.0f;
             if (target_scroll_y < min_scroll) target_scroll_y = min_scroll;
 
@@ -754,10 +778,11 @@ bool WifiConfigView::handleTouchSSIDList(bool is_pressed, int16_t x, int16_t y, 
                 }
 
                 // 点击 SSID 列表项
-                const int ITEM_H = 46;
+                const int ITEM_H = 50;
                 const int LIST_TOP = 82;
                 if (touch_start_y >= LIST_TOP && touch_start_y <= 410) {
                     int clicked_idx = (int)(touch_start_y - LIST_TOP - list_scroll_y) / (ITEM_H + 4);
+
                     if (clicked_idx >= 0 && clicked_idx < count) {
                         const auto& item = list[clicked_idx];
                         strncpy(selected_ssid, item.ssid, sizeof(selected_ssid) - 1);
