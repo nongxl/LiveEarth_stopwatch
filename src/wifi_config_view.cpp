@@ -15,6 +15,8 @@ WifiConfigView::WifiConfigView()
       key_count(0),
       pressed_key_idx(-1),
       key_press_feedback_ms(0),
+      press_start_ms(0),
+      is_long_press_triggered(false),
       list_scroll_y(0.0f),
       target_scroll_y(0.0f),
       is_dragging_list(false),
@@ -36,10 +38,10 @@ void WifiConfigView::init() {
 void WifiConfigView::buildTrapezoidKeyboardLayout() {
     key_count = 0;
 
-    // Row 1: 最宽, 10 键 (q w e r t y u i o p)
-    int16_t r1_y = 152;
+    // Row 1: 最宽, 10 键 (q w e r t y u i o p) -> 长按输入 1 2 3 4 5 6 7 8 9 0
+    int16_t r1_y = 210;
     int16_t r1_w = 38;
-    int16_t r1_h = 42;
+    int16_t r1_h = 46;
     int16_t r1_gap = 4;
     int16_t r1_total = 10 * r1_w + 9 * r1_gap; // 416
     int16_t r1_start_x = (SCREEN_WIDTH - r1_total) / 2;
@@ -47,6 +49,7 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
     const char r1_norm[] = "qwertyuiop";
     const char r1_shft[] = "QWERTYUIOP";
     const char r1_syms[] = "1234567890";
+    const char r1_long[] = "1234567890";
 
     for (int i = 0; i < 10; i++) {
         KeyButton& k = keys[key_count++];
@@ -57,21 +60,23 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = r1_norm[i];
         k.shift_char  = r1_shft[i];
         k.symbol_char = r1_syms[i];
+        k.long_press_char = r1_long[i];
         k.label = nullptr;
         k.action_code = 0;
     }
 
-    // Row 2: 次宽, 9 键 (a s d f g h j k l)
-    int16_t r2_y = 198;
+    // Row 2: 次宽, 9 键 (a s d f g h j k l) -> 长按输入高频 Wi-Fi 符号 @ _ . - ! # $ * ?
+    int16_t r2_y = 260;
     int16_t r2_w = 40;
-    int16_t r2_h = 42;
+    int16_t r2_h = 46;
     int16_t r2_gap = 4;
     int16_t r2_total = 9 * r2_w + 8 * r2_gap; // 392
     int16_t r2_start_x = (SCREEN_WIDTH - r2_total) / 2;
 
     const char r2_norm[] = "asdfghjkl";
     const char r2_shft[] = "ASDFGHJKL";
-    const char r2_syms[] = "@#$%&*-_+";
+    const char r2_syms[] = "@#$&*-+()";
+    const char r2_long[] = "@_.-!#$*?";
 
     for (int i = 0; i < 9; i++) {
         KeyButton& k = keys[key_count++];
@@ -82,13 +87,14 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = r2_norm[i];
         k.shift_char  = r2_shft[i];
         k.symbol_char = r2_syms[i];
+        k.long_press_char = r2_long[i];
         k.label = nullptr;
         k.action_code = 0;
     }
 
-    // Row 3: 较窄 (Shift + 7字符 + Del)
-    int16_t r3_y = 244;
-    int16_t r3_h = 42;
+    // Row 3: 较窄 (CAPS + 7 字符 + DEL) -> 长按输入 = / : ; % & ~
+    int16_t r3_y = 310;
+    int16_t r3_h = 46;
     int16_t r3_fn_w = 50;
     int16_t r3_char_w = 35;
     int16_t r3_gap = 4;
@@ -105,6 +111,7 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = 0;
         k.shift_char = 0;
         k.symbol_char = 0;
+        k.long_press_char = 0;
         k.label = "CAPS";
         k.action_code = 1; // Shift
     }
@@ -112,7 +119,8 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
     // 7 Characters
     const char r3_norm[] = "zxcvbnm";
     const char r3_shft[] = "ZXCVBNM";
-    const char r3_syms[] = "=/;:!?.";
+    const char r3_syms[] = "=/;:!%~";
+    const char r3_long[] = "=/;:!%~";
     int16_t cur_x = r3_start_x + r3_fn_w + r3_gap;
     for (int i = 0; i < 7; i++) {
         KeyButton& k = keys[key_count++];
@@ -123,6 +131,7 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = r3_norm[i];
         k.shift_char  = r3_shft[i];
         k.symbol_char = r3_syms[i];
+        k.long_press_char = r3_long[i];
         k.label = nullptr;
         k.action_code = 0;
     }
@@ -130,25 +139,26 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
     // Del Key
     {
         KeyButton& k = keys[key_count++];
-        k.x = cur_x + 7 * (r3_char_w + r3_gap) - r3_gap + r3_gap;
+        k.x = cur_x + 7 * (r3_char_w + r3_gap);
         k.y = r3_y;
         k.w = r3_fn_w;
         k.h = r3_h;
         k.normal_char = 0;
         k.shift_char = 0;
         k.symbol_char = 0;
+        k.long_press_char = 0;
         k.label = "DEL";
         k.action_code = 2; // Del
     }
 
-    // Row 4: 底部窄行, 3 个大功能键 (?123/ABC, SPACE, CONNECT)
-    int16_t r4_y = 292;
-    int16_t r4_h = 44;
+    // Row 4: 底部窄行, 3 个大功能键 (?123/ABC, SPACE, JOIN)
+    int16_t r4_y = 362;
+    int16_t r4_h = 48;
     int16_t r4_w_mode = 76;
-    int16_t r4_w_space = 132;
+    int16_t r4_w_space = 124;
     int16_t r4_w_conn = 104;
     int16_t r4_gap = 6;
-    int16_t r4_total = r4_w_mode + r4_gap + r4_w_space + r4_gap + r4_w_conn; // 324
+    int16_t r4_total = r4_w_mode + r4_gap + r4_w_space + r4_gap + r4_w_conn; // 316
     int16_t r4_start_x = (SCREEN_WIDTH - r4_total) / 2;
 
     // Mode Key
@@ -161,6 +171,7 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = 0;
         k.shift_char = 0;
         k.symbol_char = 0;
+        k.long_press_char = 0;
         k.label = "?123";
         k.action_code = 3; // Toggle Symbol
     }
@@ -175,6 +186,7 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = ' ';
         k.shift_char = ' ';
         k.symbol_char = ' ';
+        k.long_press_char = 0;
         k.label = "SPACE";
         k.action_code = 4; // Space
     }
@@ -189,32 +201,13 @@ void WifiConfigView::buildTrapezoidKeyboardLayout() {
         k.normal_char = 0;
         k.shift_char = 0;
         k.symbol_char = 0;
+        k.long_press_char = 0;
         k.label = "JOIN";
         k.action_code = 5; // Connect
     }
-
-    // Row 5: 底部超窄快捷符号行 (5 键: .  @  !  _  ~) 完美吻合圆底弧线
-    int16_t r5_y = 342;
-    int16_t r5_w = 44;
-    int16_t r5_h = 36;
-    int16_t r5_gap = 6;
-    int16_t r5_total = 5 * r5_w + 4 * r5_gap; // 244
-    int16_t r5_start_x = (SCREEN_WIDTH - r5_total) / 2;
-    const char r5_chars[] = ".@!_~";
-
-    for (int i = 0; i < 5; i++) {
-        KeyButton& k = keys[key_count++];
-        k.x = r5_start_x + i * (r5_w + r5_gap);
-        k.y = r5_y;
-        k.w = r5_w;
-        k.h = r5_h;
-        k.normal_char = r5_chars[i];
-        k.shift_char  = r5_chars[i];
-        k.symbol_char = r5_chars[i];
-        k.label = nullptr;
-        k.action_code = 0;
-    }
+    // 已彻底去除 Row 5，键盘高度减少一行，整体重心下移贴合圆屏底部
 }
+
 
 void WifiConfigView::switchState(WifiConfigState new_state) {
     current_state = new_state;
@@ -477,40 +470,39 @@ void WifiConfigView::renderSSIDList(M5GFX& display) {
 void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
     display.fillScreen(COLOR_BG);
 
-    // 1. 顶部网络信息与返回按键 (Y: 24 ~ 54)
-    display.fillRoundRect(50, 26, 68, 24, 12, 0x0842);
-    display.drawRoundRect(50, 26, 68, 24, 12, 0x2354);
+    // 1. 顶部网络信息与返回按键 (Y: 22 ~ 54)
+    display.fillRoundRect(50, 24, 68, 26, 13, 0x0842);
+    display.drawRoundRect(50, 24, 68, 26, 13, 0x2354);
     display.setTextDatum(middle_center);
+    display.setFont(&fonts::Font0);
     display.setTextSize(1);
     display.setTextColor(0x7BEF, 0x0842);
-    display.drawString("< SSID", 84, 38);
+    display.drawString("< SSID", 84, 37);
 
     char title_buf[64];
     snprintf(title_buf, sizeof(title_buf), "%s", selected_ssid);
     display.setFont(&fonts::efontCN_14);
     display.setTextDatum(middle_center);
     display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
-    display.drawString(title_buf, SCREEN_CENTER + 40, 38);
+    display.drawString(title_buf, SCREEN_CENTER + 40, 37);
     display.setFont(&fonts::Font0);
 
-    // 2. 密码输入显示框 (Y: 58 ~ 102, 宽 340, 高 44, 圆角 10)
-
+    // 2. 密码输入显示框 (下移优化至 Y: 64 ~ 116, 宽 340, 高 50, 圆角 12)
     int16_t box_w = 340;
-    int16_t box_h = 44;
+    int16_t box_h = 50;
     int16_t box_x = (SCREEN_WIDTH - box_w) / 2;
-    int16_t box_y = 56;
+    int16_t box_y = 64;
 
-    display.fillRoundRect(box_x, box_y, box_w, box_h, 10, 0x0821);
-    display.drawRoundRect(box_x, box_y, box_w, box_h, 10, COLOR_ACCENT_CYAN);
+    display.fillRoundRect(box_x, box_y, box_w, box_h, 12, 0x0821);
+    display.drawRoundRect(box_x, box_y, box_w, box_h, 12, COLOR_ACCENT_CYAN);
 
-    // 密码文本或掩码
+    // 密码文本或掩码 (使用 16px Font2 大字体)
     char show_buf[65] = {0};
     uint32_t now = millis();
     if (show_password_plain) {
         strncpy(show_buf, input_password, sizeof(show_buf) - 1);
     } else {
         for (size_t i = 0; i < pass_cursor; i++) {
-            // 最后一个刚输入的字符在 1 秒内显示明文，其余显示星号
             if (i == pass_cursor - 1 && (now - last_char_input_ms < 900)) {
                 show_buf[i] = input_password[i];
             } else {
@@ -521,9 +513,11 @@ void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
     }
 
     display.setTextDatum(middle_left);
+    display.setFont(&fonts::Font2);
     display.setTextSize(1);
     display.setTextColor(0xFFFF, 0x0821);
     if (pass_cursor == 0) {
+        display.setFont(&fonts::Font0);
         display.setTextColor(0x52AA, 0x0821);
         display.drawString("ENTER PASSWORD...", box_x + 14, box_y + box_h / 2);
     } else {
@@ -531,41 +525,45 @@ void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
         // 闪烁光标
         if ((now / 450) % 2 == 0) {
             int16_t text_w = display.textWidth(show_buf);
-            display.drawFastVLine(box_x + 14 + text_w + 2, box_y + 10, box_h - 20, 0x07E0);
+            display.drawFastVLine(box_x + 14 + text_w + 2, box_y + 12, box_h - 24, 0x07E0);
         }
     }
 
     // 密码框右侧动作按钮: 眼睛明暗切换 (Eye) 与 清除 (Clear)
     int16_t eye_x = box_x + box_w - 62;
-    display.fillRoundRect(eye_x, box_y + 8, 26, 28, 6, 0x1B55);
+    display.fillRoundRect(eye_x, box_y + 11, 26, 28, 6, 0x1B55);
     display.setTextDatum(middle_center);
+    display.setFont(&fonts::Font0);
     display.setTextColor(show_password_plain ? 0x07E0 : 0x7BEF, 0x1B55);
     display.drawString(show_password_plain ? "EYE" : "***", eye_x + 13, box_y + box_h / 2);
 
     int16_t clr_x = box_x + box_w - 32;
-    display.fillRoundRect(clr_x, box_y + 8, 24, 28, 6, 0x3186);
+    display.fillRoundRect(clr_x, box_y + 11, 24, 28, 6, 0x3186);
     display.setTextColor(0xFFFF, 0x3186);
     display.drawString("X", clr_x + 12, box_y + box_h / 2);
 
-    // 3. 提示信息 (Y: 108 ~ 140)
+    // 3. 提示信息 (Y: 126 ~ 185 区域，高雅充裕)
     display.setTextDatum(middle_center);
+    display.setFont(&fonts::Font0);
+    display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
+    display.drawString("* HOLD KEY FOR NUM & @ . _ - *", SCREEN_CENTER, 134);
+
     char info_buf[64];
     snprintf(info_buf, sizeof(info_buf), "LEN: %u/64  |  MODE: %s", 
              (unsigned int)pass_cursor,
-             kb_mode == KB_MODE_LOWER ? "abc" : (kb_mode == KB_MODE_UPPER ? "ABC" : "123/?"));
+             kb_mode == KB_MODE_LOWER ? "abc" : (kb_mode == KB_MODE_UPPER ? "CAPS" : "?123"));
     display.setTextColor(0x7BEF, COLOR_BG);
-    display.drawString(info_buf, SCREEN_CENTER, 126);
+    display.drawString(info_buf, SCREEN_CENTER, 154);
 
-    // 4. 倒梯形键盘按键绘制
+    // 4. 倒梯形键盘按键绘制 (下移至 Y: 210, 4 行大按键)
     for (size_t i = 0; i < key_count; i++) {
         const KeyButton& k = keys[i];
-        bool is_pressed = ((int)i == pressed_key_idx && (now - key_press_feedback_ms < 180));
+        bool is_pressed = ((int)i == pressed_key_idx && (now - key_press_feedback_ms < 200));
 
         uint16_t bg_col = 0x0842;
         uint16_t border_col = 0x2354;
         uint16_t text_col = 0xFFFF;
 
-        // 特殊按键色彩定制
         if (k.action_code == 1) { // Shift
             if (kb_mode == KB_MODE_UPPER) {
                 bg_col = 0x1B55;
@@ -592,18 +590,18 @@ void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
         }
 
         if (is_pressed) {
-            bg_col = 0x07FF; // 按下高亮青白
+            bg_col = is_long_press_triggered ? 0x07E0 : 0x07FF; // 长按时高亮纯绿
             text_col = 0x0000;
         }
 
-        display.fillRoundRect(k.x, k.y, k.w, k.h, 6, bg_col);
-        display.drawRoundRect(k.x, k.y, k.w, k.h, 6, border_col);
-
-        display.setTextDatum(middle_center);
-        display.setTextSize(1);
-        display.setTextColor(text_col, bg_col);
+        display.fillRoundRect(k.x, k.y, k.w, k.h, 7, bg_col);
+        display.drawRoundRect(k.x, k.y, k.w, k.h, 7, border_col);
 
         if (k.label) {
+            display.setFont(&fonts::Font0);
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(text_col, bg_col);
             if (k.action_code == 3) {
                 display.drawString(kb_mode == KB_MODE_SYMBOLS ? "ABC" : "?123", k.x + k.w / 2, k.y + k.h / 2);
             } else {
@@ -614,8 +612,25 @@ void WifiConfigView::renderTrapezoidKeyboard(M5GFX& display) {
             if (kb_mode == KB_MODE_UPPER) ch = k.shift_char;
             else if (kb_mode == KB_MODE_SYMBOLS) ch = k.symbol_char;
 
+            // 1. 大号居中主字符 (使用 16px Font2 大字体)
+            display.setFont(&fonts::Font2);
+            display.setTextDatum(middle_center);
+            display.setTextSize(1);
+            display.setTextColor(text_col, bg_col);
             char ch_str[2] = { ch, '\0' };
-            display.drawString(ch_str, k.x + k.w / 2, k.y + k.h / 2);
+            int16_t cy = (kb_mode != KB_MODE_SYMBOLS && k.long_press_char != 0) ? (k.y + k.h / 2 + 2) : (k.y + k.h / 2);
+            display.drawString(ch_str, k.x + k.w / 2, cy);
+
+            // 2. 右上角长按快捷角标 (数字 1~0, 常见符号 @ _ . - ! # $ * ? 等)
+            if (kb_mode != KB_MODE_SYMBOLS && k.long_press_char != 0) {
+                display.setFont(&fonts::Font0);
+                display.setTextDatum(top_right);
+                display.setTextSize(1);
+                uint16_t sub_col = is_pressed ? 0x0000 : 0x07FF;
+                display.setTextColor(sub_col, bg_col);
+                char sub_str[2] = { k.long_press_char, '\0' };
+                display.drawString(sub_str, k.x + k.w - 3, k.y + 3);
+            }
         }
     }
 }
@@ -816,6 +831,8 @@ bool WifiConfigView::handleTouchKeyboard(bool is_pressed, int16_t x, int16_t y, 
             touch_start_ms = now_ms;
             touch_start_x = x;
             touch_start_y = y;
+            press_start_ms = now_ms;
+            is_long_press_triggered = false;
 
             // 检查倒梯形键盘按键碰撞
             for (size_t i = 0; i < key_count; i++) {
@@ -826,6 +843,17 @@ bool WifiConfigView::handleTouchKeyboard(bool is_pressed, int16_t x, int16_t y, 
                     break;
                 }
             }
+        } else {
+            // 持续按住中：判断是否达到长按阈值 (380ms)
+            if (!is_long_press_triggered && pressed_key_idx >= 0 && (now_ms - press_start_ms >= 380)) {
+                const KeyButton& k = keys[pressed_key_idx];
+                if (k.action_code == 0 && k.long_press_char != 0 && kb_mode != KB_MODE_SYMBOLS) {
+                    appendChar(k.long_press_char);
+                    is_long_press_triggered = true;
+                    key_press_feedback_ms = now_ms; // 再次触发高亮
+                    Serial.printf("[Keyboard] Long-press input: '%c'\n", k.long_press_char);
+                }
+            }
         }
     } else {
         if (touch_start_ms > 0) {
@@ -833,7 +861,7 @@ bool WifiConfigView::handleTouchKeyboard(bool is_pressed, int16_t x, int16_t y, 
             int16_t total_dx = x - touch_start_x;
             int16_t total_dy = y - touch_start_y;
 
-            if (duration < 450 && abs(total_dx) < 20 && abs(total_dy) < 20) {
+            if (duration < 550 && abs(total_dx) < 20 && abs(total_dy) < 20) {
                 // 1. 返回 SSID 列表按钮 (X: 45~125, Y: 20~54)
                 if (touch_start_x >= 45 && touch_start_x <= 125 && touch_start_y >= 20 && touch_start_y <= 54) {
                     switchState(WIFI_CFG_SSID_LIST);
@@ -844,10 +872,11 @@ bool WifiConfigView::handleTouchKeyboard(bool is_pressed, int16_t x, int16_t y, 
                 // 2. 密码框右侧: 眼睛切换 (Eye) 与 清除 (Clear)
                 int16_t box_w = 340;
                 int16_t box_x = (SCREEN_WIDTH - box_w) / 2;
+                int16_t box_y = 64;
                 int16_t eye_x = box_x + box_w - 62;
                 int16_t clr_x = box_x + box_w - 32;
 
-                if (touch_start_y >= 56 && touch_start_y <= 100) {
+                if (touch_start_y >= box_y && touch_start_y <= box_y + 50) {
                     if (touch_start_x >= eye_x && touch_start_x <= eye_x + 28) {
                         show_password_plain = !show_password_plain;
                         touch_start_ms = 0;
@@ -861,38 +890,41 @@ bool WifiConfigView::handleTouchKeyboard(bool is_pressed, int16_t x, int16_t y, 
                     }
                 }
 
-                // 3. 倒梯形键盘按键点击判定
-                for (size_t i = 0; i < key_count; i++) {
-                    const KeyButton& k = keys[i];
-                    if (touch_start_x >= k.x && touch_start_x < k.x + k.w &&
-                        touch_start_y >= k.y && touch_start_y < k.y + k.h) 
-                    {
-                        if (k.action_code == 0) {
-                            char ch = k.normal_char;
-                            if (kb_mode == KB_MODE_UPPER) ch = k.shift_char;
-                            else if (kb_mode == KB_MODE_SYMBOLS) ch = k.symbol_char;
-                            appendChar(ch);
-                        } else if (k.action_code == 1) { // Shift
-                            if (kb_mode == KB_MODE_LOWER) kb_mode = KB_MODE_UPPER;
-                            else kb_mode = KB_MODE_LOWER;
-                        } else if (k.action_code == 2) { // Del
-                            deleteChar();
-                        } else if (k.action_code == 3) { // Mode Toggle
-                            if (kb_mode == KB_MODE_SYMBOLS) kb_mode = KB_MODE_LOWER;
-                            else kb_mode = KB_MODE_SYMBOLS;
-                        } else if (k.action_code == 4) { // Space
-                            appendChar(' ');
-                        } else if (k.action_code == 5) { // Connect
-                            if (strlen(selected_ssid) > 0) {
-                                network_mgr.connect(selected_ssid, input_password);
-                                switchState(WIFI_CFG_CONNECTING);
+                // 3. 倒梯形键盘按键短按判定 (若未触发长按)
+                if (!is_long_press_triggered) {
+                    for (size_t i = 0; i < key_count; i++) {
+                        const KeyButton& k = keys[i];
+                        if (touch_start_x >= k.x && touch_start_x < k.x + k.w &&
+                            touch_start_y >= k.y && touch_start_y < k.y + k.h) 
+                        {
+                            if (k.action_code == 0) {
+                                char ch = k.normal_char;
+                                if (kb_mode == KB_MODE_UPPER) ch = k.shift_char;
+                                else if (kb_mode == KB_MODE_SYMBOLS) ch = k.symbol_char;
+                                appendChar(ch);
+                            } else if (k.action_code == 1) { // Shift
+                                if (kb_mode == KB_MODE_LOWER) kb_mode = KB_MODE_UPPER;
+                                else kb_mode = KB_MODE_LOWER;
+                            } else if (k.action_code == 2) { // Del
+                                deleteChar();
+                            } else if (k.action_code == 3) { // Mode Toggle
+                                if (kb_mode == KB_MODE_SYMBOLS) kb_mode = KB_MODE_LOWER;
+                                else kb_mode = KB_MODE_SYMBOLS;
+                            } else if (k.action_code == 4) { // Space
+                                appendChar(' ');
+                            } else if (k.action_code == 5) { // Connect
+                                if (strlen(selected_ssid) > 0) {
+                                    network_mgr.connect(selected_ssid, input_password);
+                                    switchState(WIFI_CFG_CONNECTING);
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
             }
             touch_start_ms = 0;
+            is_long_press_triggered = false;
         }
     }
     return true;

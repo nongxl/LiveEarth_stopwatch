@@ -27,7 +27,8 @@ struct KeyButton {
     char normal_char;
     char shift_char;
     char symbol_char;
-    const char* label;        // 特殊按键标签 (如 "Shift", "Del", "Space"...)
+    char long_press_char;     // 长按输出字符 (数字1~0、常见符号@ . _ - 等)
+    const char* label;        // 特殊按键标签 (如 "CAPS", "DEL", "SPACE", "JOIN"...)
     int action_code;          // 0: 普通字符, 1: Shift, 2: Del, 3: 切换符号, 4: Space, 5: Connect
 };
 
@@ -62,11 +63,14 @@ private:
     uint32_t last_char_input_ms;
 
     // 倒梯形按键阵列定义
-    static const size_t MAX_KEYS = 45;
+    static const size_t MAX_KEYS = 35; // 4 行精简按键阵列
     KeyButton keys[MAX_KEYS];
     size_t key_count;
     int pressed_key_idx;
     uint32_t key_press_feedback_ms;
+    uint32_t press_start_ms;
+    bool is_long_press_triggered;
+
 
     // SSID 列表滚动与触控
     float list_scroll_y;
