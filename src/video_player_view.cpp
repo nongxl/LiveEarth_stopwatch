@@ -147,7 +147,9 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
     // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
     if (has_stream) {
         char stat_buf[32];
-        if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
+        if (strstr(place->id, "kilauea") || strstr(place->id, "maunakea")) {
+            snprintf(stat_buf, sizeof(stat_buf), "USGS #%02u | ~10M SYNC", (unsigned int)(snapshot_player.getFrameSeq()));
+        } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
             snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | SYNCING", (unsigned int)(snapshot_player.getFrameSeq()));
         } else {
             snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));

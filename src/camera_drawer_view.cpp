@@ -130,16 +130,25 @@ void CameraDrawerView::render(M5GFX& display, const PlaceMarkerManager& place_mg
     }
 
     // 2. 顶部导航 HUD (Y: 28 ~ 78)
+    size_t online_count = 0;
+    for (size_t i = 0; i < GLOBAL_PLACES_COUNT; i++) {
+        if (GLOBAL_PLACES[i].is_online) online_count++;
+    }
+
     display.setTextDatum(middle_center);
     display.setTextSize(1);
     display.setTextColor(COLOR_ACCENT_CYAN, 0x0821);
     display.drawString("* CAMERA DIRECTORY *", panel_x + DRAWER_WIDTH / 2, 34);
 
+    char live_buf[48];
+    snprintf(live_buf, sizeof(live_buf), "* %u VERIFIED LIVE FEEDS *", (unsigned int)online_count);
     display.setTextColor(0x07E0, 0x0821);
-    display.drawString("* 3 VERIFIED LIVE BROADCASTS *", panel_x + DRAWER_WIDTH / 2, 50);
+    display.drawString(live_buf, panel_x + DRAWER_WIDTH / 2, 50);
 
+    char total_buf[48];
+    snprintf(total_buf, sizeof(total_buf), "%u GLOBAL LOCATIONS", (unsigned int)GLOBAL_PLACES_COUNT);
     display.setTextColor(0xA554, 0x0821);
-    display.drawString("100 GLOBAL LOCATIONS", panel_x + DRAWER_WIDTH / 2, 66);
+    display.drawString(total_buf, panel_x + DRAWER_WIDTH / 2, 66);
 
     display.drawFastHLine(panel_x + 16, 76, DRAWER_WIDTH - 32, 0x2354);
 

@@ -446,7 +446,9 @@ void loop() {
                     // 飞越旋转至所选经纬度，并平滑放大成焦点 (target_zoom = 1.35f)！
                     globe.flyToLatLng(p->latitude, p->longitude, false, 750, 1.35f);
                     snapshot_player.loadPlace(p);
-                    Serial.printf("[Drawer Selected] Focus & Zoom: %s (%s)\n", p->name, p->country);
+                    // 用户在左侧列表选中后，直接自动打开该摄像头的实时预览大卡片！
+                    transition_to_view(VIEW_PLACE_PREVIEW);
+                    Serial.printf("[Drawer Selected] Focus, Zoom & Open Preview: %s (%s)\n", p->name, p->country);
                 }
                 touch_state.was_pressed = false;
                 touch_state.is_dragging = false;

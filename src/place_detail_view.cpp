@@ -122,9 +122,15 @@ void PlaceDetailView::drawRightPanel(M5GFX& display, const PlaceLocation* place)
 
         // 官方认证 (Y: 208)
         display.setTextColor(0xFFFF, COLOR_BG); // 纯白高亮
-        display.drawString("OFFICIAL", rx, 208);
-        display.setTextColor(0x7BEF, COLOR_BG);
-        display.drawString("STREAM", rx, 224);
+        if (strstr(place->id, "kilauea") || strstr(place->id, "maunakea")) {
+            display.drawString("USGS CAM", rx, 208);
+            display.setTextColor(0xFD64, COLOR_BG); // 提示野外间歇刷新
+            display.drawString("~10M SYNC", rx, 224);
+        } else {
+            display.drawString("OFFICIAL", rx, 208);
+            display.setTextColor(0x7BEF, COLOR_BG);
+            display.drawString("STREAM", rx, 224);
+        }
     } else {
         // 离线典藏状态 (Y: 154)
         display.setTextColor(0xFDC0, COLOR_BG); // 琥珀金
