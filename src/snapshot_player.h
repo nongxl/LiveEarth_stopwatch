@@ -45,6 +45,11 @@ public:
     virtual CameraPlayerType getPlayerType() const override { return CAM_TYPE_SNAPSHOT; }
     uint32_t getLastFetchTime() const { return last_fetch_ms; }
 
+    // 实际帧间隔（毫秒）：两帧之间真实经过的时间
+    uint32_t getLastFrameIntervalMs() const { return last_frame_interval_ms; }
+    bool isUsingCache() const { return is_using_cache; }
+    bool isFetching() const { return current_state == SNAP_STATE_FETCHING; }
+
     // 停止并清理缓冲
     virtual void stop() override;
 
@@ -53,6 +58,9 @@ private:
     volatile bool need_decode;     // 后台下载完成，等待主线程解码
     volatile bool frame_ready;     // 主线程解码完成，等待视图推送重绘
     bool has_decoded_frame;
+    bool is_using_cache;           // 当前是否正在显示本地预热缓存帧
+    uint8_t fail_count;            // 失败计数器（用于指数退避控频）
+    uint32_t next_allowed_fetch_ms;// 下一次允许重试拉取的时间戳
     uint32_t frame_seq;
 
     uint8_t* frame_buffer;
@@ -64,9 +72,13 @@ private:
 
     char current_url[256];
     const PlaceLocation* active_place;
+    const PlaceLocation* pending_place;
+    const PlaceLocation* fetching_place;
 
     uint32_t last_fetch_ms;
     uint32_t fetch_start_ms;
+    uint32_t last_decode_done_ms;    // 上一帧解码完成时间
+    uint32_t last_frame_interval_ms; // 两帧之间实际间隔(ms)
     bool task_running;
     volatile bool stop_requested;
     SemaphoreHandle_t buffer_mutex;

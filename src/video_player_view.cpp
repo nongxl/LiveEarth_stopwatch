@@ -42,6 +42,10 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
 
     bool has_stream = place->is_online && (place->snapshot_url != nullptr) && (strlen(place->snapshot_url) > 0);
 
+
+    display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    display.setAddrWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
     if (needs_full_redraw || place != last_rendered_place) {
         display.fillScreen(COLOR_BG);
 
@@ -65,6 +69,12 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         display.setTextSize(1);
         display.setTextColor(0xA554, COLOR_BG);
         display.drawString(sub_buf, SCREEN_CENTER_X, 96);
+
+        // 水印与来源信息 (视频视窗上方，绝不遮挡视频)
+        char wm_buf[64];
+        snprintf(wm_buf, sizeof(wm_buf), "FEED: %s", place->cam_source);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString(wm_buf, SCREEN_CENTER_X, 110);
 
         // 2. 16:9 黄金内接视频视窗底色与微光科技框 (X: 30, Y: 119, W: 406, H: 228)
         if (has_stream && snapshot_player.hasValidFrame()) {
@@ -106,39 +116,14 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
             }
         }
 
+        // 视窗边框
         display.drawRect(VIDEO_X, VIDEO_Y, VIDEO_W, VIDEO_H, has_stream ? 0x3C19 : 0x2354);
         display.drawRect(VIDEO_X - 1, VIDEO_Y - 1, VIDEO_W + 2, VIDEO_H + 2, 0x1B55);
 
-        // 四角 HUD 瞄准锁框
-        int16_t b_len = 10;
-        display.drawLine(VIDEO_X, VIDEO_Y, VIDEO_X + b_len, VIDEO_Y, 0xFFFF);
-        display.drawLine(VIDEO_X, VIDEO_Y, VIDEO_X, VIDEO_Y + b_len, 0xFFFF);
-
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y, VIDEO_X + VIDEO_W - 1 - b_len, VIDEO_Y, 0xFFFF);
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y, VIDEO_X + VIDEO_W - 1, VIDEO_Y + b_len, 0xFFFF);
-
-        display.drawLine(VIDEO_X, VIDEO_Y + VIDEO_H - 1, VIDEO_X + b_len, VIDEO_Y + VIDEO_H - 1, 0xFFFF);
-        display.drawLine(VIDEO_X, VIDEO_Y + VIDEO_H - 1, VIDEO_X, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
-
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1 - b_len, VIDEO_Y + VIDEO_H - 1, 0xFFFF);
-        display.drawLine(VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1, VIDEO_X + VIDEO_W - 1, VIDEO_Y + VIDEO_H - 1 - b_len, 0xFFFF);
-
-        // 水印与合规背书 (移到视频视窗上方，绝不遮挡视频内容)
+        // 3. 底部弧形控制提示 (Y: 365 ~ 430) - 视频视窗下方
         display.setTextDatum(middle_center);
-        display.setTextSize(1);
-        display.setTextColor(0x7BEF, COLOR_BG);
-        char wm_buf[64];
-        snprintf(wm_buf, sizeof(wm_buf), "FEED: %s", place->cam_source);
-        display.drawString(wm_buf, SCREEN_CENTER_X, 108);
-
-        // 3. 底部弧形控制提示 (Y: 365 ~ 430)
-
-        display.setTextDatum(middle_center);
-        display.setTextColor(0x7BEF, COLOR_BG);
-        display.drawString("DIAGONAL: 466px (MAX INSCRIBED 16:9)", SCREEN_CENTER_X, 375);
-
         display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
-        display.drawString("[TAP SCREEN OR PRESS BTNA TO RETURN]", SCREEN_CENTER_X, 405);
+        display.drawString("[TAP SCREEN OR PRESS BTNA TO RETURN]", SCREEN_CENTER_X, 398);
 
         display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 224, 60, 120, 0x1B55);
 
@@ -146,45 +131,60 @@ void VideoPlayerView::render(M5GFX& display, const PlaceLocation* place) {
         last_rendered_place = place;
     }
 
-    // 动态帧元素：实时时间码与状态码 (不破坏视频底图)
+    // 动态帧元素：在视频视窗正上方/正下方显示，不遮挡画面
     if (has_stream) {
-        char stat_buf[32];
+        uint32_t interval_ms = snapshot_player.getLastFrameIntervalMs();
+
+        // 帧率文字显示在视窗正下方 (Y: VIDEO_Y + VIDEO_H + 4 ~ 360)
+        display.setTextDatum(bottom_left);
+        display.setFont(&fonts::Font0);
+        display.setTextSize(1);
+
+        // 帧序号 + 实际刷新间隔 (左侧)
+        char stat_buf[48];
         if (strstr(place->id, "kilauea") || strstr(place->id, "maunakea")) {
-            snprintf(stat_buf, sizeof(stat_buf), "USGS #%02u | ~10M SYNC", (unsigned int)(snapshot_player.getFrameSeq()));
+            snprintf(stat_buf, sizeof(stat_buf), "USGS #%02u", (unsigned int)(snapshot_player.getFrameSeq()));
         } else if (snapshot_player.getState() == SNAP_STATE_FETCHING) {
-            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | SYNCING", (unsigned int)(snapshot_player.getFrameSeq()));
+            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | SYNCING...", (unsigned int)(snapshot_player.getFrameSeq()));
         } else {
-            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u | 4.6Mbps", (unsigned int)(snapshot_player.getFrameSeq()));
+            snprintf(stat_buf, sizeof(stat_buf), "LIVE #%02u", (unsigned int)(snapshot_player.getFrameSeq()));
         }
-        display.setTextDatum(top_right);
-        display.setTextColor(0x4EEB, 0x0821);
-        display.drawString(stat_buf, VIDEO_X + VIDEO_W - 22, VIDEO_Y + 10);
-        display.fillCircle(VIDEO_X + VIDEO_W - 12, VIDEO_Y + 14, (millis() % 1000 < 500) ? 3 : 2, 0x07E0);
+        display.setTextColor(0x07FF, COLOR_BG);
+        display.drawString(stat_buf, VIDEO_X, VIDEO_Y + VIDEO_H + 12);
 
-        uint32_t secs = simulated_seconds % 60;
-        uint32_t mins = (simulated_seconds / 60) % 60;
-        uint32_t hrs  = (simulated_seconds / 3600) % 24;
-        char timecode[32];
-        snprintf(timecode, sizeof(timecode), "LIVE %02u:%02u:%02u", hrs, mins, secs);
-
-        display.setTextDatum(bottom_left);
-        display.setTextColor(0xFFFF, 0x0821);
-        display.drawString(timecode, VIDEO_X + 12, VIDEO_Y + VIDEO_H - 10);
-
+        // 实际帧率 (右侧) - 显示两帧之间的真实刷新时间
+        char fps_buf[32];
+        if (interval_ms > 0 && interval_ms < 120000) {
+            float fps = 1000.0f / (float)interval_ms;
+            if (fps >= 0.1f) {
+                snprintf(fps_buf, sizeof(fps_buf), "%.2f s/f", interval_ms / 1000.0f);
+            } else {
+                snprintf(fps_buf, sizeof(fps_buf), "~%us/f", (unsigned int)(interval_ms / 1000));
+            }
+        } else {
+            snprintf(fps_buf, sizeof(fps_buf), "WAITING...");
+        }
         display.setTextDatum(bottom_right);
-        display.setTextColor(0x07E0, 0x0821);
-        display.drawString("AUDIO OK", VIDEO_X + VIDEO_W - 12, VIDEO_Y + VIDEO_H - 10);
+        display.setTextColor(0x07E0, COLOR_BG);
+        display.drawString(fps_buf, VIDEO_X + VIDEO_W, VIDEO_Y + VIDEO_H + 12);
+
+        // 闪烁 LIVE 指示点 (左上角，视窗外紧贴边框上方)
+        display.fillCircle(VIDEO_X + 6, VIDEO_Y - 7, (millis() % 1000 < 500) ? 4 : 3,
+                           (millis() % 1000 < 500) ? 0xF940 : 0xFD00);
+        display.setTextDatum(top_left);
+        display.setTextColor(0xF940, COLOR_BG);
+        display.drawString("LIVE", VIDEO_X + 14, VIDEO_Y - 12);
+
     } else {
-        display.setTextDatum(top_right);
-        display.setTextColor(0xFDC0, 0x0821);
-        display.drawString("ARCHIVE", VIDEO_X + VIDEO_W - 12, VIDEO_Y + 10);
-
+        // 归档卡视窗下方标注
         display.setTextDatum(bottom_left);
-        display.setTextColor(0x7BEF, 0x0821);
-        display.drawString("AUDIT QUEUE #2026", VIDEO_X + 12, VIDEO_Y + VIDEO_H - 10);
+        display.setFont(&fonts::Font0);
+        display.setTextSize(1);
+        display.setTextColor(0x7BEF, COLOR_BG);
+        display.drawString("ARCHIVE #2026", VIDEO_X, VIDEO_Y + VIDEO_H + 12);
 
         display.setTextDatum(bottom_right);
-        display.setTextColor(0x4EEB, 0x0821);
-        display.drawString("100 PLACES", VIDEO_X + VIDEO_W - 12, VIDEO_Y + VIDEO_H - 10);
+        display.setTextColor(0x4EEB, COLOR_BG);
+        display.drawString("100 PLACES", VIDEO_X + VIDEO_W, VIDEO_Y + VIDEO_H + 12);
     }
 }

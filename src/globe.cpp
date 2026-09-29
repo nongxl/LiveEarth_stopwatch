@@ -259,94 +259,125 @@ static inline uint16_t blendRGB565(uint16_t c1, uint16_t c2, float t) {
 }
 
 void GlobeEngine::renderOceanGlobe(M5Canvas& canvas, float r) {
-    // 纯正球体深邃大洋底色（完美贴合球心 (cx, cy)）
-    canvas.fillCircle(cx, cy, (int32_t)r, 0x08C6);
-}
+    if (r < 10.0f) return;
 
-void GlobeEngine::renderTerminatorLine(M5Canvas& canvas, float r) {
-    if (!has_sun_data) return;
-
-    // 太阳直射方向单位向量 S = (Sx, Sy, Sz)
-    float subLatR = sun_pos.subsolar_lat * DEG_TO_RAD;
-    float subLonR = sun_pos.subsolar_lon * DEG_TO_RAD;
-    float Sx = cosf(subLatR) * cosf(subLonR);
-    float Sy = cosf(subLatR) * sinf(subLonR);
-    float Sz = sinf(subLatR);
-
-    // 构造垂直于 S 的正交基底 U, V (使得 P(a) = U*cos(a) + V*sin(a) 正好是晨昏圈)
-    float Ux = -Sy;
-    float Uy = Sx;
-    float Uz = 0.0f;
-    float ulen = sqrtf(Ux * Ux + Uy * Uy);
-    if (ulen > 1e-4f) {
-        Ux /= ulen; Uy /= ulen;
-    } else {
-        Ux = 1.0f; Uy = 0.0f; Uz = 0.0f;
+    uint16_t* buf = (uint16_t*)canvas.getBuffer();
+    if (!buf || !has_sun_data) {
+        canvas.fillCircle(cx, cy, (int32_t)r, 0x08C6);
+        return;
     }
 
-    float Vx = Sy * Uz - Sz * Uy;
-    float Vy = Sz * Ux - Sx * Uz;
-    float Vz = Sx * Uy - Sy * Ux;
-
-    // 视角中心正弦/余弦
+    // 1. 计算太阳在当前相机屏幕坐标系下的单位向量 S_c = (Scx, Scy, Scz)
     float cLatRad = current_pitch;
     float cLonRad = current_yaw;
+    float subLatR = sun_pos.subsolar_lat * DEG_TO_RAD;
+    float subLonR = sun_pos.subsolar_lon * DEG_TO_RAD;
+
     float sin_cLat = sinf(cLatRad);
     float cos_cLat = cosf(cLatRad);
-    float sin_cLon = sinf(cLonRad);
-    float cos_cLon = cosf(cLonRad);
+    float sin_subLat = sinf(subLatR);
+    float cos_subLat = cosf(subLatR);
 
-    // 晨昏渐变双层落日霞光色（内层霞光金 #F5A623 -> 0xF544，外层柔和暗琥珀 #A05A18 -> 0xA2C3）
-    const uint16_t COL_TERMINATOR_CORE = 0xF544;
-    const uint16_t COL_TERMINATOR_GLOW = 0xA2C3;
+    float dLon_s = subLonR - cLonRad;
+    float sin_dLon_s = sinf(dLon_s);
+    float cos_dLon_s = cosf(dLon_s);
 
-    int prevX = -1, prevY = -1;
-    bool prevVis = false;
+    // 相机坐标系：X朝右，Y朝上(对应屏幕-dy)，Z朝向观察者(对应正面半球h)
+    float Scx = cos_subLat * sin_dLon_s;
+    float Scy = cos_cLat * sin_subLat - sin_cLat * cos_subLat * cos_dLon_s;
+    float Scz = sin_cLat * sin_subLat + cos_cLat * cos_subLat * cos_dLon_s;
 
-    // 以 5 度为步长，平滑投影晨昏圈大圆弧线
-    for (int step = 0; step <= 72; step++) {
-        float rad = (step * 5.0f) * DEG_TO_RAD;
-        float ca = cosf(rad);
-        float sa = sinf(rad);
+    // 白昼大洋色 (清爽明亮深邃海蓝) & 黑夜大洋色 (极其幽暗深空黑蓝) & 晨昏过渡色
+    const uint16_t COL_DAY_OCEAN      = 0x0A91; // 白昼碧海蔚蓝 (RGB ~ 10, 80, 140)
+    const uint16_t COL_TWILIGHT_OCEAN = 0x0107; // 晨昏幽蓝 (RGB ~ 5, 32, 60)
+    const uint16_t COL_NIGHT_OCEAN    = 0x0043; // 深夜极暗墨黑蓝 (RGB ~ 0, 8, 24)
 
-        // 晨昏圈球面点 P = (Px, Py, Pz)
-        float Px = Ux * ca + Vx * sa;
-        float Py = Uy * ca + Vy * sa;
-        float Pz = Uz * ca + Vz * sa;
+    int ir = (int)r;
+    int r2 = ir * ir;
+    float inv_r = 1.0f / r;
 
-        // 投影到当前视角 (正交投影)
-        float term2 = Px * cos_cLon + Py * sin_cLon;
-        float cos_c = sin_cLat * Pz + cos_cLat * term2;
+    int y_min = std::max(0, cy - ir);
+    int y_max = std::min((int)GLOBE_CANVAS_HEIGHT - 1, cy + ir);
 
-        if (cos_c > 0.01f) {
-            float proj_x = r * (Py * cos_cLon - Px * sin_cLon);
-            float proj_y = r * (cos_cLat * Pz - sin_cLat * term2);
+    // 局部采样着色求值函数
+    auto sample_ocean_col = [&](int dx, float dy_term, float max_dx2_f) -> uint16_t {
+        float h2 = max_dx2_f - (float)(dx * dx);
+        float h = (h2 > 0.0f) ? sqrtf(h2) : 0.0f;
+        float cos_solar = (dx * Scx - dy_term + h * Scz) * inv_r;
 
-            int curX = cx + (int)proj_x;
-            int curY = cy - (int)proj_y;
-
-            if (prevVis) {
-                if (abs(curX - prevX) < 80 && abs(curY - prevY) < 80) {
-                    // 绘制柔和落日霞光晨昏过渡弧
-                    canvas.drawLine(prevX, prevY, curX, curY, COL_TERMINATOR_CORE);
-                    // 外发光增强层次
-                    canvas.drawPixel(curX, curY + 1, COL_TERMINATOR_GLOW);
-                    canvas.drawPixel(curX, curY - 1, COL_TERMINATOR_GLOW);
-                }
-            }
-            prevX = curX;
-            prevY = curY;
-            prevVis = true;
+        if (cos_solar >= 0.40f) {
+            return COL_DAY_OCEAN;
+        } else if (cos_solar >= 0.05f) {
+            float u = (cos_solar - 0.05f) / 0.35f;
+            float t = u * u * (3.0f - 2.0f * u);
+            return blendRGB565(COL_TWILIGHT_OCEAN, COL_DAY_OCEAN, t);
+        } else if (cos_solar >= -0.30f) {
+            float u = (cos_solar + 0.30f) / 0.35f;
+            float t = u * u * (3.0f - 2.0f * u);
+            return blendRGB565(COL_NIGHT_OCEAN, COL_TWILIGHT_OCEAN, t);
         } else {
-            prevVis = false;
+            return COL_NIGHT_OCEAN;
+        }
+    };
+
+    for (int y = y_min; y <= y_max; ++y) {
+        int dy = y - cy;
+        int dy2 = dy * dy;
+        int max_dx2 = r2 - dy2;
+        if (max_dx2 < 0) continue;
+        int w = (int)sqrtf((float)max_dx2);
+
+        int x_min = std::max(0, cx - w);
+        int x_max = std::min((int)GLOBE_CANVAS_WIDTH - 1, cx + w);
+        if (x_min > x_max) continue;
+
+        uint16_t* ptr = buf + y * GLOBE_CANVAS_WIDTH + x_min;
+        float dy_term = dy * Scy;
+        float max_dx2_f = (float)max_dx2;
+
+        int x = x_min;
+        uint16_t c_curr = sample_ocean_col(x - cx, dy_term, max_dx2_f);
+
+        // 4像素跨步批量求值：减少75%数学运算与开平方，纯色大洋区间极速填充
+        while (x + 4 <= x_max) {
+            uint16_t c_next = sample_ocean_col((x + 4) - cx, dy_term, max_dx2_f);
+
+            if (c_curr == c_next) {
+                uint16_t s = __builtin_bswap16(c_curr);
+                ptr[0] = s;
+                ptr[1] = s;
+                ptr[2] = s;
+                ptr[3] = s;
+            } else {
+                ptr[0] = __builtin_bswap16(c_curr);
+                ptr[1] = __builtin_bswap16(blendRGB565(c_curr, c_next, 0.25f));
+                ptr[2] = __builtin_bswap16(blendRGB565(c_curr, c_next, 0.50f));
+                ptr[3] = __builtin_bswap16(blendRGB565(c_curr, c_next, 0.75f));
+            }
+
+            ptr += 4;
+            x += 4;
+            c_curr = c_next;
+        }
+
+        // 处理行尾余数
+        while (x <= x_max) {
+            *ptr++ = __builtin_bswap16(sample_ocean_col(x - cx, dy_term, max_dx2_f));
+            x++;
         }
     }
 }
 
+void GlobeEngine::renderTerminatorLine(M5Canvas& canvas, float r) {
+    // 昼夜过渡与落日霞光已全域融入超宽三次平滑大洋与陆地光照引擎中，
+    // 不再叠加刺眼生硬的单像素高对比实线，呈现真实太空视角的柔润晨昏漫反射
+}
+
 void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
-    // 雅致深空淡蓝色调（低饱和度半透明感微光淡蓝，不抢占海岸线与地标视觉焦点）
-    const uint16_t COL_GRID_STANDARD = 0x2354; // 普通经纬网：柔和微光淡蓝灰 (RGB ~ 35, 105, 165)
-    const uint16_t COL_GRID_PRIME    = 0x4C9B; // 赤道与本初子午线：清爽微亮淡天蓝 (RGB ~ 70, 145, 215)
+    // 雅致微光经纬网格色彩：白天清爽淡蓝，黑夜沉浸微暗蓝灰
+    const uint16_t COL_GRID_STANDARD = 0x2354; // 普通经纬网白昼色 (RGB ~ 35, 105, 165)
+    const uint16_t COL_GRID_PRIME    = 0x4C9B; // 赤道与本初子午线白昼色 (RGB ~ 70, 145, 215)
+    const uint16_t COL_GRID_NIGHT    = 0x0905; // 黑夜半球经纬网暗调色 (RGB ~ 8, 18, 42)
 
     float cLatRad = current_pitch;
     float cLonRad = current_yaw;
@@ -354,6 +385,16 @@ void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
     float cos_cLat = cosf(cLatRad);
     float sin_cLon = sinf(cLonRad);
     float cos_cLon = cosf(cLonRad);
+
+    float sin_subLat = 0.0f, cos_subLat = 1.0f, sin_subLon = 0.0f, cos_subLon = 1.0f;
+    if (has_sun_data) {
+        float subLatR = sun_pos.subsolar_lat * DEG_TO_RAD;
+        float subLonR = sun_pos.subsolar_lon * DEG_TO_RAD;
+        sin_subLat = sinf(subLatR);
+        cos_subLat = cosf(subLatR);
+        sin_subLon = sinf(subLonR);
+        cos_subLon = cosf(subLonR);
+    }
 
     // 1. 绘制纬度圈（Parallels）：-60°, -30°, 0° (赤道), +30°, +60°
     static const float PARALLELS[] = { -60.0f, -30.0f, 0.0f, 30.0f, 60.0f };
@@ -362,7 +403,7 @@ void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
         float sin_lat = sinf(latRad);
         float cos_lat = cosf(latRad);
 
-        uint16_t line_col = (latDeg == 0.0f) ? COL_GRID_PRIME : COL_GRID_STANDARD;
+        uint16_t base_line_col = (latDeg == 0.0f) ? COL_GRID_PRIME : COL_GRID_STANDARD;
 
         int prevX = -1, prevY = -1;
         bool prevVis = false;
@@ -381,8 +422,22 @@ void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
                 int curX = cx + (int)(r * (cos_lat * sin_dLon));
                 int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
 
+                uint16_t seg_col = base_line_col;
+                if (has_sun_data) {
+                    float cos_solar = sin_subLat * sin_lat + cos_subLat * cos_lat * (cos_lon * cos_subLon + sin_lon * sin_subLon);
+                    if (cos_solar >= 0.30f) {
+                        seg_col = base_line_col;
+                    } else if (cos_solar <= -0.30f) {
+                        seg_col = COL_GRID_NIGHT;
+                    } else {
+                        float u = (cos_solar + 0.30f) / 0.60f;
+                        float t = u * u * (3.0f - 2.0f * u);
+                        seg_col = blendRGB565(COL_GRID_NIGHT, base_line_col, t);
+                    }
+                }
+
                 if (prevVis) {
-                    canvas.drawLine(prevX, prevY, curX, curY, line_col);
+                    canvas.drawLine(prevX, prevY, curX, curY, seg_col);
                 }
                 prevX = curX;
                 prevY = curY;
@@ -403,7 +458,7 @@ void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
         float cos_dLon = cos_lon * cos_cLon + sin_lon * sin_cLon;
         float sin_dLon = sin_lon * cos_cLon - cos_lon * sin_cLon;
 
-        uint16_t line_col = (m == 0) ? COL_GRID_PRIME : COL_GRID_STANDARD;
+        uint16_t base_line_col = (m == 0) ? COL_GRID_PRIME : COL_GRID_STANDARD;
 
         int prevX = -1, prevY = -1;
         bool prevVis = false;
@@ -419,8 +474,22 @@ void GlobeEngine::renderCoordinateGrid(M5Canvas& canvas, float r) {
                 int curX = cx + (int)(r * (cos_lat * sin_dLon));
                 int curY = cy - (int)(r * (cos_cLat * sin_lat - sin_cLat * cos_lat * cos_dLon));
 
+                uint16_t seg_col = base_line_col;
+                if (has_sun_data) {
+                    float cos_solar = sin_subLat * sin_lat + cos_subLat * cos_lat * (cos_lon * cos_subLon + sin_lon * sin_subLon);
+                    if (cos_solar >= 0.30f) {
+                        seg_col = base_line_col;
+                    } else if (cos_solar <= -0.30f) {
+                        seg_col = COL_GRID_NIGHT;
+                    } else {
+                        float u = (cos_solar + 0.30f) / 0.60f;
+                        float t = u * u * (3.0f - 2.0f * u);
+                        seg_col = blendRGB565(COL_GRID_NIGHT, base_line_col, t);
+                    }
+                }
+
                 if (prevVis) {
-                    canvas.drawLine(prevX, prevY, curX, curY, line_col);
+                    canvas.drawLine(prevX, prevY, curX, curY, seg_col);
                 }
                 prevX = curX;
                 prevY = curY;
@@ -486,14 +555,16 @@ void GlobeEngine::renderHighPrecisionContinents(M5Canvas& canvas, float r) {
                             float cos_lon_sub = cos_lon * cos_subLon + sin_lon * sin_subLon;
                             float cos_solar = sin_subLat * sin_lat + cos_subLat * cos_lat * cos_lon_sub;
 
-                            // 连续无级平滑渐变：消除生硬的阈值跳变
-                            if (cos_solar >= 0.18f) {
+                            // 连续无级三次平滑渐变：消除生硬的阈值跳变
+                            if (cos_solar >= 0.40f) {
                                 lineColor = COL_DAY_COAST;
-                            } else if (cos_solar >= 0.0f) {
-                                float t = cos_solar / 0.18f;
+                            } else if (cos_solar >= 0.05f) {
+                                float u = (cos_solar - 0.05f) / 0.35f;
+                                float t = u * u * (3.0f - 2.0f * u);
                                 lineColor = blendRGB565(COL_TWILIGHT_COAST, COL_DAY_COAST, t);
-                            } else if (cos_solar >= -0.18f) {
-                                float t = (cos_solar + 0.18f) / 0.18f;
+                            } else if (cos_solar >= -0.30f) {
+                                float u = (cos_solar + 0.30f) / 0.35f;
+                                float t = u * u * (3.0f - 2.0f * u);
                                 lineColor = blendRGB565(COL_NIGHT_COAST, COL_TWILIGHT_COAST, t);
                             } else {
                                 lineColor = COL_NIGHT_COAST;

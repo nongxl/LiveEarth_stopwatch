@@ -14,6 +14,7 @@
 #define SCREEN_CENTER_Y      (SCREEN_HEIGHT / 2)  // 233
 #define SCREEN_RADIUS        233
 #define SAFE_UI_RADIUS       215                  // 圆形安全可视边界内径
+#define DEFAULT_DISPLAY_BRIGHTNESS 144           // 默认屏幕亮度 (0~255)，原 180 降低 20% 为 144
 
 // Globe Engine Viewport Geometry (466x320 Full-Width Precision Canvas)
 #define GLOBE_CANVAS_WIDTH   466
@@ -44,7 +45,7 @@
 
 
 // Snapshot Stream Engine Settings
-#define SNAPSHOT_REFRESH_INTERVAL_MS 4500   // 4.5秒定时轮询最新现场动态帧
-#define SNAPSHOT_HTTP_TIMEOUT_MS     5000   // 5秒超时保护
-#define SNAPSHOT_MAX_BUF_SIZE        (256 * 1024) // 256KB PSRAM 接收缓冲区
+#define SNAPSHOT_REFRESH_INTERVAL_MS 15000  // 15秒定时轮询最新现场动态帧（符合各大景区与天文台监控快照真实更新周期，彻底避免被控频封禁）
+#define SNAPSHOT_HTTP_TIMEOUT_MS     12000  // 12秒超时保护（适应 SSL 握手与大图下载）
+#define SNAPSHOT_MAX_BUF_SIZE        (512 * 1024) // 512KB PSRAM 接收缓冲区，彻底杜绝 300KB+ 高清大图（如富士山）截断解码失败
 

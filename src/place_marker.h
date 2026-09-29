@@ -32,8 +32,18 @@ struct PlaceLocation {
 class PlaceMarkerManager {
 public:
     PlaceMarkerManager();
+    ~PlaceMarkerManager();
 
     void init();
+
+    // 从本地 LittleFS 加载 /places.json (若不存在或解析失败回退至默认硬编码)
+    bool loadFromLittleFS(const char* filepath = "/places.json");
+
+    // 从 JSON 字符串解析并原子切换地点池 (在 PSRAM 中分配)
+    bool loadFromJson(const char* json_str, size_t json_len);
+
+    // 重置回固件硬编码默认地点
+    void resetToDefault();
 
     // 更新动画状态
     void update(uint32_t now_ms);
@@ -55,12 +65,27 @@ public:
     void nextPlace();
     void prevPlace();
 
+    bool isUsingDynamicPlaces() const { return is_dynamic; }
+
 private:
     float pulse_phase;
     int selected_idx;
     uint32_t last_anim_ms;
+
+    bool is_dynamic;
+    PlaceLocation* dynamic_places;
+    size_t dynamic_count;
+    char* dynamic_str_pool;
+
+    void freeDynamicMemory();
 };
 
-extern const PlaceLocation GLOBAL_PLACES[];
-extern const size_t GLOBAL_PLACES_COUNT;
+extern const PlaceLocation DEFAULT_GLOBAL_PLACES[];
+extern const size_t DEFAULT_GLOBAL_PLACES_COUNT;
+
+// 当前活跃的地点数组（启动时指向硬编码默认值，若 LittleFS 或网络存在则指向动态加载的地点池）
+extern const PlaceLocation* GLOBAL_PLACES;
+extern size_t GLOBAL_PLACES_COUNT;
+
+extern PlaceMarkerManager place_mgr;
 

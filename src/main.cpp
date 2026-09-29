@@ -12,6 +12,8 @@
 #include "snapshot_player.h"
 #include "camera_drawer_view.h"
 #include "wifi_config_view.h"
+#include <LittleFS.h>
+#include "camera_ota_sync.h"
 
 
 // -------------------------------------------------------------
@@ -27,7 +29,7 @@ static AppViewState current_view_state = VIEW_GLOBE;
 static M5Canvas canvas(&M5.Display);
 static GlobeEngine globe;
 static SunCalculator sun_calc;
-static PlaceMarkerManager place_mgr;
+// place_mgr is exported globally by place_marker.h
 static PlaceDetailView preview_view;
 static VideoPlayerView video_player;
 
@@ -65,8 +67,19 @@ struct PerformanceMetrics {
 
 static uint32_t btn_click_count = 0;
 
-// 默认基准时间：2026年9月23日 09:30:00 UTC (1790155800)
-static uint32_t simulated_utc_time = 1790155800;
+// 开机仪式感全息渐进构建动画状态
+static bool is_boot_anim = true;
+static uint32_t boot_start_ms = 0;
+static constexpr uint32_t BOOT_ANIM_DURATION = 2200; // 2.2 秒优雅渐进构建展开
+static uint32_t wifi_connect_done_ms = 0;
+static bool was_wifi_connected = false;
+
+// 默认基准时间：2026年9月28日 UTC (若 NTP 同步失败时的后备值)
+static uint32_t simulated_utc_time = 1727480000;
+// 地理定位缓存
+static float geo_lat = 0.0f;
+static float geo_lon = 0.0f;
+static bool geo_loc_fetched = false;
 
 // -------------------------------------------------------------
 // Helper: Print System & Memory Diagnostics
@@ -129,6 +142,10 @@ static void draw_static_hud_markers() {
 }
 
 static void update_dynamic_hud() {
+    M5.Display.setFont(&fonts::Font0);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextSize(1);
+
     // 1. 顶部视界经纬度信息 (上移至 Y: 46)
     float center_lat = globe.getPitch() * RAD_TO_DEG;
     float center_lon = globe.getYaw() * RAD_TO_DEG;
@@ -138,8 +155,6 @@ static void update_dynamic_hud() {
              fabsf(center_lon), (center_lon >= 0 ? 'E' : 'W'));
 
     M5.Display.setTextColor(0xD69A, COLOR_BG);
-    M5.Display.setTextDatum(middle_center);
-    M5.Display.setTextSize(1);
     M5.Display.drawString(view_buf, SCREEN_CENTER_X, 46);
 
     // 2. 太阳直射位置 (上移至 Y: 58，与 Y:73 视口边缘完全隔离，彻底杜绝闪烁与遮挡)
@@ -152,13 +167,15 @@ static void update_dynamic_hud() {
     M5.Display.setTextColor(0xFD64, COLOR_BG); // 暖金
     M5.Display.drawString(sun_buf, SCREEN_CENTER_X, 58);
 
-    // 3. 底部状态栏 HUD: 当前聚焦/选中地点胶囊信息 (位于 Y: 398, 412, 426，在视口 393 之下)
+    // 3. 底部状态栏 HUD: 先局部清屏彻底杜绝字串变短时的旧字重叠与残影
+    M5.Display.fillRect(0, 393, SCREEN_WIDTH, SCREEN_HEIGHT - 393, COLOR_BG);
+
     const PlaceLocation* sel_place = place_mgr.getSelectedPlace();
     if (sel_place) {
         char place_title[64];
         snprintf(place_title, sizeof(place_title), "%s (%s)", sel_place->name, sel_place->country);
         M5.Display.setTextColor(sel_place->theme_color, COLOR_BG);
-        M5.Display.drawString(place_title, SCREEN_CENTER_X, 398);
+        M5.Display.drawString(place_title, SCREEN_CENTER_X, 400);
 
         char place_detail[64];
         snprintf(place_detail, sizeof(place_detail), "%4.1f%c %5.1f%c | %s",
@@ -166,22 +183,59 @@ static void update_dynamic_hud() {
                  fabsf(sel_place->longitude), (sel_place->longitude >= 0 ? 'E' : 'W'),
                  sel_place->category);
         M5.Display.setTextColor(0xA554, COLOR_BG);
-        M5.Display.drawString(place_detail, SCREEN_CENTER_X, 412);
+        M5.Display.drawString(place_detail, SCREEN_CENTER_X, 416);
     }
 
-    // 4. 网络与性能状态栏 HUD (底部 Y: 426)
-    char perf_buf[80];
-    if (network_mgr.isConnected()) {
-        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | WIFI ONLINE (%ddBm) | DRAG ROTATE", perf.current_fps, network_mgr.getRSSI());
-        M5.Display.setTextColor(0x07E0, COLOR_BG); // 纯绿正常
-    } else if (network_mgr.getState() == WIFI_STATE_CONNECTING) {
-        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | WIFI CONNECTING... | DRAG ROTATE", perf.current_fps);
-        M5.Display.setTextColor(0xFDC0, COLOR_BG); // 暖金重试
-    } else {
-        snprintf(perf_buf, sizeof(perf_buf), "%4.1f FPS | OFFLINE ARCHIVE | DRAG ROTATE", perf.current_fps);
-        M5.Display.setTextColor(COLOR_TEXT_MUTED, COLOR_BG); // 优雅离线
+    // 4. 底部网络连接与系统状态 HUD (动态、炫酷、与赛博极客风格完美融合，单行紧凑自适应圆屏底部)
+    uint32_t now = millis();
+    bool is_net_ok = network_mgr.isConnected();
+    if (is_net_ok && !was_wifi_connected) {
+        was_wifi_connected = true;
+        wifi_connect_done_ms = now; // 记录刚连上的时间点
+    } else if (!is_net_ok) {
+        was_wifi_connected = false;
     }
-    M5.Display.drawString(perf_buf, SCREEN_CENTER_X, 426);
+
+    if (network_mgr.getState() == WIFI_STATE_CONNECTING) {
+        // [动态连接中] 居中流光能量脉冲
+        int16_t bar_w = 110;
+        int16_t bar_h = 2;
+        int16_t bar_x = SCREEN_CENTER_X - bar_w / 2;
+        int16_t bar_y = 430;
+        M5.Display.fillRect(bar_x, bar_y, bar_w, bar_h, 0x18E3);
+
+        float sweep = 0.5f + 0.5f * sinf(now * 0.009f);
+        int16_t dot_x = bar_x + (int16_t)(sweep * (bar_w - 18));
+        M5.Display.fillRect(dot_x, bar_y - 1, 18, bar_h + 2, COLOR_ACCENT_CYAN);
+
+        const char* dots[] = {".  ", ".. ", "...", " .."};
+        int d_idx = (now / 200) % 4;
+        char net_buf[64];
+        snprintf(net_buf, sizeof(net_buf), "LINKING: %s %s", network_mgr.getSSID(), dots[d_idx]);
+        M5.Display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
+        M5.Display.drawString(net_buf, SCREEN_CENTER_X, 442);
+
+    } else if (is_net_ok && (now - wifi_connect_done_ms < 3000)) {
+        // [连接成功建立瞬间高亮]
+        float flash = 0.5f + 0.5f * sinf(now * 0.015f);
+        uint16_t ok_col = (flash > 0.3f) ? 0x07E0 : 0xFFFF;
+        char ok_buf[48];
+        snprintf(ok_buf, sizeof(ok_buf), "* ONLINE // IP: %s *", network_mgr.getIP());
+        M5.Display.setTextColor(ok_col, COLOR_BG);
+        M5.Display.drawString(ok_buf, SCREEN_CENTER_X, 434);
+
+    } else if (is_net_ok) {
+        // [常规稳定在线状态] 紧凑合并单行，给圆弧边缘预留安全边距
+        char status_buf[64];
+        snprintf(status_buf, sizeof(status_buf), "WIFI %ddBm | %4.1f FPS", network_mgr.getRSSI(), perf.current_fps);
+        M5.Display.setTextColor(COLOR_ACCENT_CYAN, COLOR_BG);
+        M5.Display.drawString(status_buf, SCREEN_CENTER_X, 434);
+
+    } else {
+        // [未连接 / 离线存档模式]
+        M5.Display.setTextColor(0xFDC0, COLOR_BG); // 暖金
+        M5.Display.drawString("OFFLINE // TAP TO SETUP WI-FI", SCREEN_CENTER_X, 434);
+    }
 }
 
 static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
@@ -190,13 +244,13 @@ static void draw_zoom_edge_ui(M5GFX& display, uint32_t now) {
     bool is_active = touch_state.is_edge_zooming || touch_state.is_double_tap_drag || (now - touch_state.last_zoom_ui_ms < 1200);
 
     if (!is_active) {
-        // 静止态：右侧边缘微光拉手把柄 (X: 454~466, Y: 213~253)，宽度 12 严格杜绝超出 466
-        float pulse = 0.5f + 0.5f * sinf(now * 0.003f);
-        uint16_t h_col = (pulse > 0.4f) ? 0xFDC0 : 0x2354;
+        // 静止态：右侧边缘低调科技拉手把柄 (X: 454~466, Y: 213~253)，稳态暗金属色，去除闪烁呼吸避免抢占视觉
+        uint16_t h_col = 0x2354;
 
         display.fillRoundRect(SCREEN_WIDTH - 12, 213, 12, 40, 5, 0x0842);
         display.drawRoundRect(SCREEN_WIDTH - 12, 213, 12, 40, 5, h_col);
 
+        display.setFont(&fonts::Font0);
         display.setTextDatum(middle_center);
         display.setTextSize(1);
         display.setTextColor(0xFFFF, 0x0842);
@@ -257,8 +311,21 @@ void setup() {
     cfg.internal_rtc = true;
     M5.begin(cfg);
 
+    // 挂载 LittleFS 本地存储并加载地点配置 (离线优先)
+    if (!LittleFS.begin(true)) {
+        Serial.println("[FS] Failed to mount LittleFS!");
+    } else {
+        Serial.println("[FS] LittleFS mounted successfully.");
+    }
+
     // 初始化地理地点管理器、预览视图、全屏播放器与网络快照引擎
     place_mgr.init();
+    if (!place_mgr.loadFromLittleFS("/places.json")) {
+        Serial.printf("[Init] Using default ROM places (%u total).\n", (uint32_t)place_mgr.getCount());
+    } else {
+        Serial.printf("[Init] Successfully loaded %u dynamic places from LittleFS.\n", (uint32_t)place_mgr.getCount());
+    }
+
     preview_view.init();
     video_player.init();
     snapshot_player.init();
@@ -267,8 +334,8 @@ void setup() {
 
     print_system_diagnostics();
 
-    // 屏幕与背光设置
-    M5.Display.setBrightness(180);
+    // 屏幕与背光设置 (原 180 降低 20% 为 144)
+    M5.Display.setBrightness(DEFAULT_DISPLAY_BRIGHTNESS);
     M5.Display.setRotation(0);
     M5.Display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     M5.Display.fillScreen(COLOR_BG);
@@ -302,9 +369,23 @@ void setup() {
         Serial.println("[Boot] No Wi-Fi credentials in NVS. Launching Wi-Fi config view.");
         wifi_config_view.open(false);
     } else {
-        Serial.println("[Boot] Found saved Wi-Fi in NVS. Starting auto-connect check.");
-        wifi_config_view.open(true);
+        Serial.println("[Boot] Found saved Wi-Fi in NVS. Launching Globe View with Cinematic Progressive Boot.");
+        // 不再调用 wifi_config_view.open(true) 霸屏！
+        // network_mgr.init() 已经在后台静默异步连接，前台直接展示炫酷渐进地球仪与动态底部网络指示器！
     }
+
+    // 立即启动开机全息渐进构建动画
+    is_boot_anim = true;
+    boot_start_ms = millis();
+
+    // 立即渲染并推送第 0 毫秒全息微光第一帧，彻底杜绝任何上电黑屏！
+    M5.Display.startWrite();
+    canvas.fillScreen(COLOR_BG);
+    globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS * 0.35f);
+    globe.render(canvas);
+    canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
+    update_dynamic_hud();
+    M5.Display.endWrite();
 }
 
 
@@ -409,36 +490,160 @@ void loop() {
     }
 
 
-    // 1. 每 2 秒微调时间并更新太阳直射点 (后台持续解算)
+    // 1. 每 2 秒更新太阳直射点
     if (now - perf.last_sun_update >= 2000) {
         perf.last_sun_update = now;
-        simulated_utc_time += 2;
+
+        if (network_mgr.isTimeSynced()) {
+            // NTP 已同步：直接从系统 RTC 读取真实 UTC 时间戳
+            time_t real_utc = 0;
+            time(&real_utc);
+            simulated_utc_time = (uint32_t)real_utc;
+        } else {
+            // 未同步时继续用模拟时间推进
+            simulated_utc_time += 2;
+        }
+
         SunPosition cur_sun = sun_calc.calculate(simulated_utc_time);
         globe.setSunPosition(cur_sun.subsolar_lat, cur_sun.subsolar_lon);
     }
 
-    // 2. 物理按键处理 (根据状态机分流)
-    if (M5.BtnA.wasClicked()) {
-        if (current_view_state == VIEW_VIDEO_FULL) {
-            // 从放大视频返回中等预览模式
-            transition_to_view(VIEW_PLACE_PREVIEW);
-        } else if (current_view_state == VIEW_PLACE_PREVIEW) {
-            // 从中等预览模式返回居中地球仪
+    // 1b. 联网后一次性获取 IP 地理位置（用于定位时区与大致坐标）
+    if (network_mgr.isConnected() && !geo_loc_fetched) {
+        geo_loc_fetched = true;
+        network_mgr.fetchGeoLocation(&geo_lat, &geo_lon, nullptr);
+    }
+
+    // 1c. 联网后触发后台静默机位 OTA 差分同步（国内加速优先，失败优雅降级）
+    if (network_mgr.isConnected()) {
+        camera_ota_sync.startSilentSync();
+    }
+
+    // =============================================================
+    // 2. 物理实体按键交互矩阵 (Dragon Ball Radar Style)
+    // KeyA: GPIO 2 (屏幕左上角)  |  KeyB: GPIO 1 (机身右侧)
+    // =============================================================
+
+    // 规则 1: 全局长按 KeyA 呼出 / 关闭摄像头列表
+    if (M5.BtnA.wasHold()) {
+        if (current_view_state != VIEW_GLOBE) {
+            // 若当前处于预览或全屏模式，返回地球仪并呼出抽屉
             transition_to_view(VIEW_GLOBE);
+            camera_drawer.open();
+            camera_drawer.scrollToSelected(place_mgr.getSelectedIndex());
+            Serial.println("[KeyA Hold] Exited to VIEW_GLOBE & opened camera drawer.");
         } else {
-            // 在居中地球仪模式下，短按按键切换下一个地点并对准
-            btn_click_count++;
-            place_mgr.nextPlace();
-            const PlaceLocation* p = place_mgr.getSelectedPlace();
-            if (p) {
-                globe.flyToLatLng(p->latitude, p->longitude, false, 550);
-                Serial.printf("[BtnA] Switched & focused to: %s (%s)\n", p->name, p->country);
+            camera_drawer.toggle();
+            if (camera_drawer.isOpen() || camera_drawer.isVisible()) {
+                camera_drawer.scrollToSelected(place_mgr.getSelectedIndex());
+            }
+            Serial.printf("[KeyA Hold] Camera drawer toggled: %s\n", camera_drawer.isOpen() ? "OPEN" : "CLOSED");
+        }
+    }
+    // 规则 2: 在摄像头抽屉列表中且完全展开 (camera_drawer.isOpen())
+    else if (camera_drawer.isOpen()) {
+        // 2.1 短按 KeyA: 向下选择列表项 (循环往复，平滑滚动居中，地球仪同步旋转对准)
+        if (M5.BtnA.wasClicked()) {
+            int next_idx = camera_drawer.selectNextItem(place_mgr.getSelectedIndex());
+            if (next_idx >= 0) {
+                place_mgr.setSelectedIndex(next_idx);
+                const PlaceLocation* p = place_mgr.getSelectedPlace();
+                if (p) {
+                    globe.flyToLatLng(p->latitude, p->longitude, false, 450);
+                    Serial.printf("[KeyA Step] Selected list item #%d: %s (%s)\n", next_idx + 1, p->name, p->country);
+                }
             }
         }
-    } else if (M5.BtnA.wasHold()) {
-        if (current_view_state == VIEW_GLOBE) {
-            Serial.println("[BtnA Hold] Resetting globe orientation to default.");
-            globe.resetOrientation();
+        // 2.2 长按 KeyB: 切换 全部摄像头 <-> LIVE 摄像头列表
+        else if (M5.BtnB.wasHold()) {
+            camera_drawer.toggleFilter();
+            camera_drawer.scrollToSelected(place_mgr.getSelectedIndex());
+            Serial.printf("[KeyB Hold] Drawer filter toggled -> %s\n", camera_drawer.isFilterLiveOnly() ? "LIVE ONLY" : "ALL");
+        }
+        // 2.3 短按 KeyB: 确定选择并聚焦此摄像头，打开预览窗口
+        else if (M5.BtnB.wasClicked()) {
+            camera_drawer.close();
+            const PlaceLocation* p = place_mgr.getSelectedPlace();
+            if (p) {
+                transition_to_view(VIEW_PLACE_PREVIEW);
+                Serial.printf("[KeyB Click] Confirmed camera -> VIEW_PLACE_PREVIEW: %s\n", p->name);
+            }
+        }
+    }
+    // 规则 3: 在摄像头聚焦预览界面 (VIEW_PLACE_PREVIEW)
+    else if (current_view_state == VIEW_PLACE_PREVIEW) {
+        // 3.1 短按 KeyA: 直接切换下一个 LIVE 摄像头（底部保留半个地球仪，自转飞跃无缝衔接）
+        if (M5.BtnA.wasClicked()) {
+            int cur_idx = place_mgr.getSelectedIndex();
+            int next_live_idx = -1;
+            for (size_t step = 1; step <= GLOBAL_PLACES_COUNT; step++) {
+                int candidate = (cur_idx + step) % GLOBAL_PLACES_COUNT;
+                if (GLOBAL_PLACES[candidate].is_online) {
+                    next_live_idx = candidate;
+                    break;
+                }
+            }
+            if (next_live_idx >= 0) {
+                place_mgr.setSelectedIndex(next_live_idx);
+                const PlaceLocation* p = place_mgr.getSelectedPlace();
+                if (p) {
+                    globe.flyToLatLng(p->latitude, p->longitude, true, 550);
+                    snapshot_player.loadPlace(p);
+                    preview_view.requestRedraw();
+                    Serial.printf("[KeyA Click] Preview Switch Next LIVE #%d: %s (%s)\n", next_live_idx + 1, p->name, p->country);
+                }
+            }
+        }
+        // 3.2 按下 KeyB: 全屏放大画面
+        else if (M5.BtnB.wasClicked()) {
+            transition_to_view(VIEW_VIDEO_FULL);
+            Serial.println("[KeyB Click] Preview -> VIEW_VIDEO_FULL");
+        }
+    }
+    // 规则 4: 在全屏放大画面 (VIEW_VIDEO_FULL)
+    else if (current_view_state == VIEW_VIDEO_FULL) {
+        // 4.1 短按 KeyA: 返回上一级 (摄像头预览窗口)
+        if (M5.BtnA.wasClicked()) {
+            transition_to_view(VIEW_PLACE_PREVIEW);
+            Serial.println("[KeyA Click] Fullscreen Back -> VIEW_PLACE_PREVIEW");
+        }
+        // 4.2 按下 KeyB: 亦可返回预览
+        else if (M5.BtnB.wasClicked()) {
+            transition_to_view(VIEW_PLACE_PREVIEW);
+            Serial.println("[KeyB Click] Fullscreen -> VIEW_PLACE_PREVIEW");
+        }
+    }
+    // 规则 5: 在地球仪界面 (VIEW_GLOBE 且抽屉未展开)
+    else if (current_view_state == VIEW_GLOBE) {
+        // 5.1 短按 KeyA: 按顺序切换地球仪上有 LIVE 标识的摄像头 (龙珠雷达锁定感！)
+        if (M5.BtnA.wasClicked()) {
+            int cur_idx = place_mgr.getSelectedIndex();
+            int next_live_idx = -1;
+            for (size_t step = 1; step <= GLOBAL_PLACES_COUNT; step++) {
+                int candidate = (cur_idx + step) % GLOBAL_PLACES_COUNT;
+                if (GLOBAL_PLACES[candidate].is_online) {
+                    next_live_idx = candidate;
+                    break;
+                }
+            }
+            if (next_live_idx >= 0) {
+                place_mgr.setSelectedIndex(next_live_idx);
+                const PlaceLocation* p = place_mgr.getSelectedPlace();
+                if (p) {
+                    globe.flyToLatLng(p->latitude, p->longitude, false, 550);
+                    Serial.printf("[KeyA Click] Radar Lock Next LIVE #%d: %s (%s)\n", next_live_idx + 1, p->name, p->country);
+                }
+            }
+        }
+        // 5.2 短按 KeyB: 确定进入预览窗口
+        else if (M5.BtnB.wasClicked()) {
+            const PlaceLocation* p = place_mgr.getSelectedPlace();
+            if (p) {
+                globe.flyToLatLng(p->latitude, p->longitude, true, 650);
+                snapshot_player.loadPlace(p);
+                transition_to_view(VIEW_PLACE_PREVIEW);
+                Serial.printf("[KeyB Click] Globe Selected Confirmed -> VIEW_PLACE_PREVIEW: %s\n", p->name);
+            }
         }
     }
 
@@ -513,6 +718,13 @@ void loop() {
                 touch_state.touch_start_ms = now;
 
                 if (current_view_state == VIEW_GLOBE) {
+                    if (is_boot_anim) {
+                        // 用户触控屏幕：瞬间跳过开机动画，立即恢复常规地球仪并点亮静态 HUD
+                        is_boot_anim = false;
+                        globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
+                        draw_static_hud_markers();
+                    }
+
                     if (cur_x > 395) {
                         // 1. 命中右侧边缘区域：进入边缘滑轨缩放模式
                         touch_state.is_edge_zooming = true;
@@ -655,11 +867,66 @@ void loop() {
             perf.free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
         }
 
+        // 开机全息渐进构建动画状态驱动
+        if (is_boot_anim) {
+            uint32_t elapsed = now - boot_start_ms;
+            if (elapsed >= BOOT_ANIM_DURATION) {
+                is_boot_anim = false;
+                globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, GLOBE_DEFAULT_RADIUS);
+                // 开机结束瞬间全面彻底擦除屏幕顶部和底部所有开机弧线与能量环残留！
+                M5.Display.fillRect(0, 0, SCREEN_WIDTH, GLOBE_CANVAS_OFFSET_Y, COLOR_BG);
+                M5.Display.fillRect(0, GLOBE_CANVAS_OFFSET_Y + GLOBE_CANVAS_HEIGHT,
+                                    SCREEN_WIDTH, SCREEN_HEIGHT - (GLOBE_CANVAS_OFFSET_Y + GLOBE_CANVAS_HEIGHT), COLOR_BG);
+                draw_static_hud_markers();
+                update_dynamic_hud();
+            } else {
+                float boot_t = (float)elapsed / (float)BOOT_ANIM_DURATION;
+                // 1. 地球仪平滑弹性展开 (从 0.35x 放大至 1.0x)
+                float ease = 1.0f - powf(1.0f - boot_t, 3.0f);
+                float cur_r = GLOBE_DEFAULT_RADIUS * (0.35f + 0.65f * ease);
+                globe.setCenterAndRadius(GLOBE_CANVAS_WIDTH / 2, GLOBE_CANVAS_HEIGHT / 2, cur_r);
+            }
+        }
+
         M5.Display.startWrite();
         canvas.fillScreen(COLOR_BG);
         globe.render(canvas);
         place_mgr.renderMarkers(canvas, globe);
         canvas.pushSprite(GLOBE_CANVAS_OFFSET_X, GLOBE_CANVAS_OFFSET_Y);
+
+        // 若在开机动画期间，叠加绘制动态外圈展开弧线与能量微光环
+        if (is_boot_anim) {
+            uint32_t elapsed = now - boot_start_ms;
+            float boot_t = (float)elapsed / (float)BOOT_ANIM_DURATION;
+            if (boot_t > 1.0f) boot_t = 1.0f;
+
+            // 1. 双向雷达扫掠弧线：前 65% 展开，后 35% 平滑收拢回顶端消失，不留任何视觉负担
+            int sweep_deg = 0;
+            if (boot_t <= 0.65f) {
+                float open_p = boot_t / 0.65f;
+                sweep_deg = (int)(open_p * 180.0f);
+            } else {
+                float close_p = (boot_t - 0.65f) / 0.35f;
+                sweep_deg = (int)((1.0f - close_p) * 180.0f);
+                // 收起时以背景色清除非视口区外弧轨迹
+                M5.Display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 228, 222, 0, 360, COLOR_BG);
+            }
+            if (sweep_deg > 0) {
+                int start_a = 270 - sweep_deg;
+                if (start_a < 0) start_a += 360;
+                int end_a = (270 + sweep_deg) % 360;
+                M5.Display.drawArc(SCREEN_CENTER_X, SCREEN_CENTER_Y, 226, 224, start_a, end_a, COLOR_ACCENT_CYAN);
+            }
+
+            // 2. 向外扩散的微光全息引力能量环
+            if (boot_t > 0.15f && boot_t < 0.65f) {
+                float ring_p = (boot_t - 0.15f) / 0.50f;
+                float cur_r = globe.getRadius();
+                int ring_r = (int)(cur_r * (0.9f + ring_p * 0.65f));
+                uint16_t ring_col = (ring_p < 0.6f) ? 0x1B55 : 0x0842;
+                M5.Display.drawCircle(SCREEN_CENTER_X, SCREEN_CENTER_Y, ring_r, ring_col);
+            }
+        }
 
         if (now - perf.last_hud_update >= 80) {
             perf.last_hud_update = now;
@@ -667,10 +934,19 @@ void loop() {
         }
 
         // 渲染屏幕左侧滑出式摄像头抽屉列表或左边缘呼出把柄
+        bool was_drawer_visible = camera_drawer.isVisible();
         camera_drawer.update(now);
         if (camera_drawer.isVisible()) {
             camera_drawer.render(M5.Display, place_mgr);
         } else {
+            if (was_drawer_visible) {
+                // 抽屉刚刚完全闭合收起：全量清除顶部和底部非视口区域的所有残影，恢复常规地球仪完整静态 HUD！
+                M5.Display.fillRect(0, 0, SCREEN_WIDTH, GLOBE_CANVAS_OFFSET_Y, COLOR_BG);
+                M5.Display.fillRect(0, GLOBE_CANVAS_OFFSET_Y + GLOBE_CANVAS_HEIGHT,
+                                    SCREEN_WIDTH, SCREEN_HEIGHT - (GLOBE_CANVAS_OFFSET_Y + GLOBE_CANVAS_HEIGHT), COLOR_BG);
+                draw_static_hud_markers();
+                update_dynamic_hud();
+            }
             camera_drawer.renderEdgeHandle(M5.Display);
         }
 
@@ -709,9 +985,11 @@ void loop() {
         // -------------------------------------------------------------
         video_player.update(now);
 
+        M5.Display.setClipRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         M5.Display.startWrite();
         video_player.render(M5.Display, place_mgr.getSelectedPlace());
         M5.Display.endWrite();
+        M5.Display.setAddrWindow(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     }
 }
 

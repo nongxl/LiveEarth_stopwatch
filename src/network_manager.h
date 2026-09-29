@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include <vector>
+#include <time.h>
 
 enum WifiState {
     WIFI_STATE_DISCONNECTED = 0,
@@ -53,6 +54,22 @@ public:
     // 重置连接失败计数/状态
     void resetFailState();
 
+    // NTP 时间同步：联网成功后调用，自动通过 NTP 服务器校时
+    // 返回 true 表示同步成功
+    bool syncNTP();
+
+    // 获取已同步的 UTC unix 时间戳（秒）；未同步时返回 0
+    uint32_t getSyncedUTC() const { return synced_utc_time; }
+
+    // 获取 IP 定位到的时区偏移（秒），未获取时返回 0
+    int32_t getTimezoneOffsetSec() const { return tz_offset_sec; }
+
+    // 是否已完成 NTP 校时
+    bool isTimeSynced() const { return time_synced; }
+
+    // 通过 ip-api.com 获取大致地理位置与时区，返回 true 成功
+    bool fetchGeoLocation(float* out_lat, float* out_lon, int32_t* out_tz_offset_sec);
+
 private:
     WifiState current_state;
     char target_ssid[33];
@@ -65,6 +82,11 @@ private:
 
     std::vector<ScannedWifiItem> scanned_networks;
     bool is_scanning;
+
+    // NTP 校时状态
+    bool time_synced;
+    uint32_t synced_utc_time;
+    int32_t tz_offset_sec;
 
     void handleStateTransition(WifiState new_state);
 };

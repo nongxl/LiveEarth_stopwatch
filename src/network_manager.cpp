@@ -1,5 +1,7 @@
 #include "network_manager.h"
 #include "config.h"
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 static const char* NVS_NAMESPACE = "le_wifi";
 static const char* NVS_KEY_SSID = "ssid";
@@ -12,7 +14,10 @@ NetworkManager::NetworkManager()
       connect_start_ms(0),
       last_retry_ms(0),
       retry_count(0),
-      is_scanning(false)
+      is_scanning(false),
+      time_synced(false),
+      synced_utc_time(0),
+      tz_offset_sec(0)
 {
     target_ssid[0] = '\0';
     target_password[0] = '\0';
@@ -228,6 +233,8 @@ void NetworkManager::handleStateTransition(WifiState new_state) {
             snprintf(ip_str, sizeof(ip_str), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
             Serial.printf("[Network] [OK] Wi-Fi Connected! IP: %s, RSSI: %d dBm\n", ip_str, WiFi.RSSI());
             retry_count = 0;
+            // 联网成功后自动启动 NTP 校时
+            syncNTP();
             break;
         }
         case WIFI_STATE_CONNECTING:
@@ -240,6 +247,78 @@ void NetworkManager::handleStateTransition(WifiState new_state) {
             Serial.println("[Network] Wi-Fi disconnected.");
             break;
     }
+}
+
+bool NetworkManager::syncNTP() {
+    Serial.println("[NTP] Synchronizing time with NTP servers...");
+
+    // 使用多个备用 NTP 服务器，时区设为 UTC+0（大阳位置计算不需要本地时区）
+    configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
+
+    // 等待 NTP 同步，最多等 8 秒
+    struct tm timeinfo;
+    uint32_t wait_start = millis();
+    bool got_time = false;
+    while (millis() - wait_start < 8000) {
+        if (getLocalTime(&timeinfo, 100)) {
+            got_time = true;
+            break;
+        }
+        delay(100);
+    }
+
+    if (got_time) {
+        time_t now_utc = 0;
+        time(&now_utc);
+        synced_utc_time = (uint32_t)now_utc;
+        time_synced = true;
+        Serial.printf("[NTP] Time synced! UTC: %lu (%04d-%02d-%02d %02d:%02d:%02d)\n",
+                      (unsigned long)now_utc,
+                      timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                      timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        return true;
+    } else {
+        Serial.println("[NTP] Time sync FAILED (timeout).");
+        return false;
+    }
+}
+
+bool NetworkManager::fetchGeoLocation(float* out_lat, float* out_lon, int32_t* out_tz_offset_sec) {
+    if (!isConnected()) return false;
+
+    Serial.println("[GeoIP] Fetching location from ip-api.com...");
+    HTTPClient http;
+    http.begin("http://ip-api.com/json/?fields=lat,lon,offset");
+    http.setTimeout(5000);
+    int code = http.GET();
+
+    if (code == 200) {
+        String body = http.getString();
+        http.end();
+        Serial.printf("[GeoIP] Response: %s\n", body.c_str());
+
+        // 简单解析 JSON
+        JsonDocument doc;
+        DeserializationError err = deserializeJson(doc, body);
+        if (!err) {
+            float lat = doc["lat"] | 0.0f;
+            float lon = doc["lon"] | 0.0f;
+            int32_t offset = doc["offset"] | 0;
+            if (out_lat) *out_lat = lat;
+            if (out_lon) *out_lon = lon;
+            if (out_tz_offset_sec) *out_tz_offset_sec = offset;
+            tz_offset_sec = offset;
+            Serial.printf("[GeoIP] Location: %.4f, %.4f  UTC%+.1f\n",
+                          lat, lon, offset / 3600.0f);
+            return true;
+        } else {
+            Serial.printf("[GeoIP] JSON parse error: %s\n", err.c_str());
+        }
+    } else {
+        http.end();
+        Serial.printf("[GeoIP] HTTP error: %d\n", code);
+    }
+    return false;
 }
 
 void NetworkManager::update(uint32_t now_ms) {
