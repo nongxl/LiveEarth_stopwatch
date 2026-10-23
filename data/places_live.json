@@ -17,8 +17,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/vpa/latest_VPA.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1886,
-    "tested_bytes": 63271
+    "tested_rtt_ms": 2274,
+    "tested_bytes": 74905
   },
   {
     "id": "hk-central-pier",
@@ -38,8 +38,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/cp1/latest_CP1.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1882,
-    "tested_bytes": 56222
+    "tested_rtt_ms": 2259,
+    "tested_bytes": 64470
   },
   {
     "id": "hk-victoria-dnl",
@@ -59,8 +59,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/dnl/latest_DNL.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1684,
-    "tested_bytes": 41191
+    "tested_rtt_ms": 2255,
+    "tested_bytes": 41282
   },
   {
     "id": "hk-sha-lo-wan",
@@ -80,8 +80,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/slw/latest_SLW.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1669,
-    "tested_bytes": 42776
+    "tested_rtt_ms": 2264,
+    "tested_bytes": 44675
   },
   {
     "id": "hk-tai-mo-shan",
@@ -101,8 +101,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/tm2/latest_TM2.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1689,
-    "tested_bytes": 23725
+    "tested_rtt_ms": 2069,
+    "tested_bytes": 31351
   },
   {
     "id": "hk-waglan-island",
@@ -122,8 +122,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/wgl/latest_WGL.jpg",
     "is_online": true,
-    "tested_rtt_ms": 828,
-    "tested_bytes": 35578
+    "tested_rtt_ms": 1040,
+    "tested_bytes": 36597
   },
   {
     "id": "hk-cheung-chau",
@@ -143,8 +143,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/cch/latest_CCH.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1172,
-    "tested_bytes": 58452
+    "tested_rtt_ms": 1048,
+    "tested_bytes": 60503
   },
   {
     "id": "hk-lamma-island",
@@ -164,8 +164,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/lam/latest_LAM.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1164,
-    "tested_bytes": 51984
+    "tested_rtt_ms": 1054,
+    "tested_bytes": 45500
   },
   {
     "id": "hk-wetland-park",
@@ -185,8 +185,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/wlp/latest_WLP.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1419,
-    "tested_bytes": 77976
+    "tested_rtt_ms": 1047,
+    "tested_bytes": 78487
   },
   {
     "id": "hk-kau-sai-chau",
@@ -206,8 +206,8 @@
     "src": "Hong Kong Observatory",
     "url": "https://www.hko.gov.hk/wxinfo/aws/hko_mica/ks2/latest_KS2.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1414,
-    "tested_bytes": 61595
+    "tested_rtt_ms": 1038,
+    "tested_bytes": 71036
   },
   {
     "id": "jp-mt-fuji-tarobo",
@@ -227,8 +227,8 @@
     "src": "Ministry of Land, Infrastructure, Transport and Tourism (MLIT)",
     "url": "https://www.cbr.mlit.go.jp/fujisabo/camera/images/00023.jpg",
     "is_online": true,
-    "tested_rtt_ms": 2104,
-    "tested_bytes": 237614
+    "tested_rtt_ms": 2698,
+    "tested_bytes": 189543
   },
   {
     "id": "jp-mt-fuji-fujinomiya",
@@ -248,8 +248,8 @@
     "src": "Ministry of Land, Infrastructure, Transport and Tourism (MLIT)",
     "url": "https://www.cbr.mlit.go.jp/fujisabo/camera/images/00026.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1695,
-    "tested_bytes": 250195
+    "tested_rtt_ms": 2425,
+    "tested_bytes": 206875
   },
   {
     "id": "jp-mt-fuji-fujisawa",
@@ -269,8 +269,8 @@
     "src": "Ministry of Land, Infrastructure, Transport and Tourism (MLIT)",
     "url": "https://www.cbr.mlit.go.jp/fujisabo/camera/images/00024.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1769,
-    "tested_bytes": 501148
+    "tested_rtt_ms": 2726,
+    "tested_bytes": 389470
   },
   {
     "id": "de-zugspitze",
@@ -290,8 +290,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/zugspitze-sued/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 654,
-    "tested_bytes": 17220
+    "tested_rtt_ms": 903,
+    "tested_bytes": 64428
   },
   {
     "id": "de-neuschwanstein",
@@ -311,8 +311,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/tegelberg/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 801,
-    "tested_bytes": 53754
+    "tested_rtt_ms": 965,
+    "tested_bytes": 55573
   },
   {
     "id": "de-koenigssee",
@@ -332,8 +332,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/jenner/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 1546,
-    "tested_bytes": 51203
+    "tested_rtt_ms": 1449,
+    "tested_bytes": 59093
   },
   {
     "id": "at-innsbruck",
@@ -353,8 +353,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/innsbruck/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 669,
-    "tested_bytes": 43073
+    "tested_rtt_ms": 852,
+    "tested_bytes": 47478
   },
   {
     "id": "at-zell-am-see",
@@ -374,8 +374,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/zellamsee/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 919,
-    "tested_bytes": 56868
+    "tested_rtt_ms": 790,
+    "tested_bytes": 49086
   },
   {
     "id": "de-wank-mountain",
@@ -395,8 +395,8 @@
     "src": "Foto-Webcam.eu",
     "url": "https://www.foto-webcam.eu/webcam/wank/current/400.jpg",
     "is_online": true,
-    "tested_rtt_ms": 871,
-    "tested_bytes": 58892
+    "tested_rtt_ms": 786,
+    "tested_bytes": 54991
   },
   {
     "id": "us-yellowstone-washburn",
@@ -416,8 +416,8 @@
     "src": "National Park Service (NPS)",
     "url": "https://www.nps.gov/webcams-yell/washburn_sw.jpg",
     "is_online": true,
-    "tested_rtt_ms": 256,
-    "tested_bytes": 63262
+    "tested_rtt_ms": 209,
+    "tested_bytes": 57871
   },
   {
     "id": "us-yellowstone-mammoth",
@@ -437,8 +437,8 @@
     "src": "National Park Service (NPS)",
     "url": "https://www.nps.gov/webcams-yell/mammoth_electric.jpg",
     "is_online": true,
-    "tested_rtt_ms": 154,
-    "tested_bytes": 111642
+    "tested_rtt_ms": 144,
+    "tested_bytes": 119565
   },
   {
     "id": "us-hawaii-kilauea",
@@ -458,7 +458,7 @@
     "src": "USGS Hawaiian Volcano Observatory",
     "url": "https://volcanoes.usgs.gov/observatories/hvo/cams/KWcam/images/M.jpg",
     "is_online": true,
-    "tested_rtt_ms": 537,
-    "tested_bytes": 200400
+    "tested_rtt_ms": 542,
+    "tested_bytes": 174096
   }
 ]
