@@ -1,31 +1,31 @@
 # LiveEarth 全球高质量直播源健康度探测报告
 
-- **更新时间**: 2026-11-22 09:37:47
+- **更新时间**: 2026-11-23 10:35:59
 - **总候选机位**: 22
 - **在线健康机位**: 22 (100.0%)
 - **ESP32 OTA 数据包大小**: 10155 字节（极其紧凑，可在 0.2 秒内下载完毕）
 
 | 状态 | 地点名称 | 国家 / 地区 | 类别 | 响应耗时 | 图像体积 | 机构来源 |
 | :---: | :--- | :--- | :---: | :---: | :---: | :--- |
-| 🟢 LIVE | **Victoria Peak** (太平山顶 (维港全景)) | Hong Kong | `mountain` | 1843 ms | 25.2 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Central Pier** (中环码头 (维多利亚港)) | Hong Kong | `city` | 2099 ms | 43.3 KB | Hong Kong Observatory |
-| 🟢 LIVE | **SE Kowloon** (东南九龙 (启德邮轮码头)) | Hong Kong | `city` | 2072 ms | 42.3 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Sha Lo Wan** (沙螺湾 (香港国际机场)) | Hong Kong | `coast` | 1884 ms | 37.3 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Tai Mo Shan** (大帽山 (高山云海)) | Hong Kong | `mountain` | 1841 ms | 18.3 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Waglan Island** (横澜岛灯塔 (南海前哨)) | Hong Kong | `coast` | 1382 ms | 33.2 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Cheung Chau** (长洲岛) | Hong Kong | `coast` | 1643 ms | 51.9 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Lamma Island** (南丫岛 (风力发电站)) | Hong Kong | `nature` | 1345 ms | 26.1 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Wetland Park** (香港湿地公园) | Hong Kong | `nature` | 1598 ms | 99.3 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Kau Sai Chau** (滘西洲 (西贡地质公园)) | Hong Kong | `nature` | 1357 ms | 51.1 KB | Hong Kong Observatory |
-| 🟢 LIVE | **Mount Fuji (Tarobo)** (富士山 (太郎坊观测所)) | Japan | `mountain` | 2267 ms | 138.6 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
-| 🟢 LIVE | **Mount Fuji (Fujinomiya)** (富士山 (富士宫市远眺)) | Japan | `mountain` | 2633 ms | 540.1 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
-| 🟢 LIVE | **Mount Fuji (Obuchi)** (富士山 (大渊观测点)) | Japan | `mountain` | 2248 ms | 309.2 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
-| 🟢 LIVE | **Zugspitze** (楚格峰 (德国最高峰 2962m)) | Germany | `mountain` | 612 ms | 43.2 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Neuschwanstein** (新天鹅堡 (阿尔卑斯山麓)) | Germany | `culture` | 862 ms | 52.8 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Lake Königssee** (国王湖 (贝希特斯加登)) | Germany | `nature` | 1018 ms | 63.9 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Innsbruck Alps** (因斯布鲁克 (阿尔卑斯之心)) | Austria | `city` | 591 ms | 43.6 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Zell am See** (滨湖采尔 (高山明珠)) | Austria | `nature` | 850 ms | 44.4 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Wank Mountain** (旺克峰 (全景看台)) | Germany | `mountain` | 839 ms | 50.9 KB | Foto-Webcam.eu |
-| 🟢 LIVE | **Mount Washburn** (黄石国家公园 (沃什伯恩峰)) | United States | `nature` | 88 ms | 112.5 KB | National Park Service (NPS) |
-| 🟢 LIVE | **Mammoth Hot Springs** (黄石国家公园 (猛犸温泉)) | United States | `nature` | 50 ms | 124.1 KB | National Park Service (NPS) |
-| 🟢 LIVE | **Kilauea Volcano** (夏威夷基拉韦厄活火山) | United States | `nature` | 694 ms | 167.5 KB | USGS Hawaiian Volcano Observatory |
+| 🟢 LIVE | **Victoria Peak** (太平山顶 (维港全景)) | Hong Kong | `mountain` | 1459 ms | 24.6 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Central Pier** (中环码头 (维多利亚港)) | Hong Kong | `city` | 1651 ms | 40.6 KB | Hong Kong Observatory |
+| 🟢 LIVE | **SE Kowloon** (东南九龙 (启德邮轮码头)) | Hong Kong | `city` | 1456 ms | 33.9 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Sha Lo Wan** (沙螺湾 (香港国际机场)) | Hong Kong | `coast` | 1452 ms | 29.1 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Tai Mo Shan** (大帽山 (高山云海)) | Hong Kong | `mountain` | 1455 ms | 31.1 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Waglan Island** (横澜岛灯塔 (南海前哨)) | Hong Kong | `coast` | 1034 ms | 18.5 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Cheung Chau** (长洲岛) | Hong Kong | `coast` | 1231 ms | 47.2 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Lamma Island** (南丫岛 (风力发电站)) | Hong Kong | `nature` | 1227 ms | 39.8 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Wetland Park** (香港湿地公园) | Hong Kong | `nature` | 1232 ms | 47.3 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Kau Sai Chau** (滘西洲 (西贡地质公园)) | Hong Kong | `nature` | 1049 ms | 44.8 KB | Hong Kong Observatory |
+| 🟢 LIVE | **Mount Fuji (Tarobo)** (富士山 (太郎坊观测所)) | Japan | `mountain` | 2875 ms | 164.4 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
+| 🟢 LIVE | **Mount Fuji (Fujinomiya)** (富士山 (富士宫市远眺)) | Japan | `mountain` | 2819 ms | 499.5 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
+| 🟢 LIVE | **Mount Fuji (Obuchi)** (富士山 (大渊观测点)) | Japan | `mountain` | 2772 ms | 288.2 KB | Ministry of Land, Infrastructure, Transport and Tourism (MLIT) |
+| 🟢 LIVE | **Zugspitze** (楚格峰 (德国最高峰 2962m)) | Germany | `mountain` | 654 ms | 16.1 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Neuschwanstein** (新天鹅堡 (阿尔卑斯山麓)) | Germany | `culture` | 676 ms | 15.3 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Lake Königssee** (国王湖 (贝希特斯加登)) | Germany | `nature` | 1218 ms | 19.5 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Innsbruck Alps** (因斯布鲁克 (阿尔卑斯之心)) | Austria | `city` | 754 ms | 43.3 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Zell am See** (滨湖采尔 (高山明珠)) | Austria | `nature` | 649 ms | 38.4 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Wank Mountain** (旺克峰 (全景看台)) | Germany | `mountain` | 523 ms | 18.3 KB | Foto-Webcam.eu |
+| 🟢 LIVE | **Mount Washburn** (黄石国家公园 (沃什伯恩峰)) | United States | `nature` | 219 ms | 70.8 KB | National Park Service (NPS) |
+| 🟢 LIVE | **Mammoth Hot Springs** (黄石国家公园 (猛犸温泉)) | United States | `nature` | 147 ms | 139.2 KB | National Park Service (NPS) |
+| 🟢 LIVE | **Kilauea Volcano** (夏威夷基拉韦厄活火山) | United States | `nature` | 903 ms | 1461.7 KB | USGS Hawaiian Volcano Observatory |
